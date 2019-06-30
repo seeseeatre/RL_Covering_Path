@@ -106,8 +106,8 @@ class FrictionDetector(contactListener):
             
             obj.tiles.add(tile)
             # print tile.road_friction, "ADD", len(obj.tiles)
-            if tile.road_visited:
-                self.env.reward -= 5
+            # if tile.road_visited:
+            #     self.env.reward -= 5
             if not tile.road_visited:
                 tile.road_visited = True
                 #self.env.reward += 1000.0/len(self.env.track)
@@ -115,8 +115,8 @@ class FrictionDetector(contactListener):
                 self.env.tile_visited_count += 1
             # else:
             #     self.env.reward -= 5
-            if tile.block:
-                self.env.reward -=500
+            if tile.block and not obj.no_touch:
+                self.env.reward -= 200
 
         else:
             obj.tiles.remove(tile)
@@ -428,8 +428,8 @@ class CarRacing1(gym.Env, EzPickle):
             self.car.gas(action[1])
             self.car.brake(action[2])
 
-            if action[1] !=0:
-                self.reward += 0.3*np.abs(action[1])
+            # if action[1] !=0:
+            #     self.reward += 0.3*np.abs(action[1])
 
         self.car.step(1.0/FPS)
         self.world.Step(1.0/FPS, 6*30, 2*30)
@@ -446,7 +446,7 @@ class CarRacing1(gym.Env, EzPickle):
             # self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
             self.prev_reward = self.reward
-            if self.tile_visited_count==500: #len(self.track):
+            if self.tile_visited_count==300: #len(self.track):
                 done = True
             x, y = self.car.hull.position
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:

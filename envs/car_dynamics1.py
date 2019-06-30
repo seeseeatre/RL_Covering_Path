@@ -27,6 +27,12 @@ HULL_POLY =[
     (40,-40),(60,0),(20,80)
     ]
 
+VIDUAL_DETECT = [
+    (0,0),
+    (-200,400),
+    (200,400)
+    ]
+
 WHEEL_COLOR = (0.2,0.0,0.3)
 WHEEL_WHITE = (0.3,0.3,0.3)
 MUD_COLOR   = (0.4,0.4,0.0)
@@ -39,10 +45,36 @@ class Car:
             position = (init_x, init_y),
             angle = init_angle,
             fixtures = [ 
-                 fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in HULL_POLY ]), density=1.0)
+                 fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in HULL_POLY ]), density=1.0)#,
+                #  fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in VIDUAL_DETECT ]), density=0.0)
                 ]
             )
         self.hull.color = (1.0,1.0,0.2)
+        self.hull.no_touch = False
+        #======================================================
+        #======================================================
+        self.detect = self.world.CreateDynamicBody(
+            position = (init_x, init_y),
+            angle = self.hull.angle,
+            fixtures = [ 
+                 fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in VIDUAL_DETECT ]), density=0.001)
+                ]
+            )
+        rjd = revoluteJointDef(
+                bodyA=self.hull,
+                bodyB=self.detect,
+                localAnchorA=(0,0),
+                localAnchorB=(0,0),
+                enableMotor=True,
+                enableLimit=True,
+                maxMotorTorque=0,
+                motorSpeed = 0,
+                lowerAngle = 0,
+                upperAngle = 0,
+                )
+        self.detect.joint = self.world.CreateJoint(rjd)
+        self.detect.no_touch = True
+        self.detect.color = (0.5,0.15,0.15)
         #======================================================
         self.wheels = []
         self.fuel_spent = 0.0
@@ -71,6 +103,7 @@ class Car:
             w.omega = 0.0  # angular velocity
             w.skid_start = None
             w.skid_particle = None
+            w.no_touch = False
             rjd = revoluteJointDef(
                 bodyA=self.hull,
                 bodyB=w,
@@ -88,7 +121,7 @@ class Car:
             w.userData = w
             self.wheels.append(w)
         #======================================================
-        self.drawlist =  self.wheels + [self.hull]
+        self.drawlist =  self.wheels + [self.hull] + [self.detect]
         self.particles = []
 
     def gas(self, gas):
@@ -243,6 +276,8 @@ class Car:
     def destroy(self):
         self.world.DestroyBody(self.hull)
         self.hull = None
+        self.world.DestroyBody(self.detect)
+        self.detect = None
         for w in self.wheels:
             self.world.DestroyBody(w)
         self.wheels = []
