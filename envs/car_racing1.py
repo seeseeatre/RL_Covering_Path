@@ -154,6 +154,8 @@ class CarRacing1(gym.Env, EzPickle):
         print(self.action_space)
         self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
 
+        self.exp_area = []
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
@@ -401,7 +403,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.grid = None
         self.grid_poly = []
         self.start_grid=[]
-
+        self.exp_area = []
 
         while True:
             #success = self._create_track()
@@ -418,10 +420,10 @@ class CarRacing1(gym.Env, EzPickle):
         return self.step(None)[0]
 
     def step(self, action):
-        if self.reward < -500:
-            step_reward = 0
-            done = True
-            return self.state, step_reward, done, {}
+        # if self.reward < -500:
+        #     step_reward = 0
+        #     done = True
+        #     return self.state, step_reward, done, {}
 
         if action is not None:
             self.car.steer(-action[0])
@@ -513,7 +515,8 @@ class CarRacing1(gym.Env, EzPickle):
 
         gl.glViewport(0, 0, VP_W, VP_H)
         t.enable()
-        self.render_road()
+        self.render_pixcel_map()
+
         for geom in self.viewer.onetime_geoms:
             geom.render()
         self.viewer.onetime_geoms = []
@@ -536,7 +539,120 @@ class CarRacing1(gym.Env, EzPickle):
             self.viewer.close()
             self.viewer = None
 
+    def render_pixcel_map(self):
+        from gym.envs.classic_control import rendering
+        image_data = pyglet.image.get_buffer_manager().get_color_buffer()
+        
+        #arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        #arr = arr.reshape(VP_H, VP_W, 4)
+
+        # render background, not necessory
+        # gl.glBegin(gl.GL_QUADS)
+        # gl.glColor4f(0.1, 0.8, 0.4, 1.0)
+        # gl.glVertex3f(-PLAYFIELD, +PLAYFIELD, 0)
+        # gl.glVertex3f(+PLAYFIELD, +PLAYFIELD, 0)
+        # gl.glVertex3f(+PLAYFIELD, -PLAYFIELD, 0)
+        # gl.glVertex3f(-PLAYFIELD, -PLAYFIELD, 0)
+        # gl.glEnd()
+        #testing render a numpy array:
+        # pixcel_map = np.zeros((96, 96, 4), dtype=np.uint32)
+
+        # for y in range(96):
+        #     for x in range(96):
+        #         pixcel_map[x][y][0] = 100 # np.random.randint(0,255)
+        #         pixcel_map[x][y][1] = 50 # np.random.randint(0,255)
+        #         pixcel_map[x][y][2] = 200 # np.random.randint(0,255)
+        #         pixcel_map[x][y][3] = 250 #np.random.randint(0,255)
+
+        # gl.glDrawPixels(96, 96, gl.GL_RGBA, gl.GL_UNSIGNED_INT , np.ascontiguousarray(pixcel_map).ctypes)
+
+        #self.viewer.draw_line((0,0), (50,50))
+        vertices = []
+        self.exp_area.append((self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle))
+
+#This doesn't works, I don't know why=================================================================================================
+        
+        # for i in range(len(self.exp_area)):
+        #     x1=self.exp_area[i][0]
+        #     y1=self.exp_area[i][1]
+        #     x2=self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y2=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+        #     x3=self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y3=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+        #     v=[(x1,y1),(x2,y2),(x3,y3)]
+        #     #v=[(gl.GLfloat(x1),gl.GLfloat(y1)),(gl.GLfloat(x2),gl.GLfloat(y2)),(gl.GLfloat(x3),gl.GLfloat(y3))]
+        #     vertices.append(v)
+        # vertices = np.array(vertices)
+        # VAO=gl.GLuint()
+        # gl.glGenVertexArrays(1, VAO)
+        # gl.glBindVertexArray(VAO)
+        # gl.glBindBuffer(gl.GL_ARRAY_BUFFER, VAO)
+        # #gl.glBufferData(gl.GL_ARRAY_BUFFER, 3, vertices , gl.GL_STATIC_DRAW)
+        # gl.glVertexPointer(3, gl.GL_FLOAT, 0, vertices.ctypes.data)
+        
+        # gl.glDrawArrays(gl.GL_TRIANGLES, 0, 3)
+
+#This works, but slows down after a while=================================================================================================
+        # for i in range(max(0,len(self.exp_area)-500),len(self.exp_area)):
+        #     x1=self.exp_area[i][0]
+        #     y1=self.exp_area[i][1]
+        #     x2=self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y2=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+        #     x3=self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y3=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+
+        #     v=[(x1,y1),(x2,y2),(x3,y3)]
+
+        #     self.viewer.draw_polygon(v,False,color=(0.9, 0.0, 0.0))
+#=================================================================================================
+#This works, but slows down after a while=================================================================================================
+        gl.glBegin(gl.GL_TRIANGLES)
+        gl.glColor4f(0.9, 0.0, 0.0, 1.0)
+        for i in range(max(0,len(self.exp_area)-500),len(self.exp_area)):
+        #i=-1
+            gl.glVertex2f(self.exp_area[i][0], self.exp_area[i][1])
+            x= self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+            y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+            gl.glVertex2f(x,y)
+            x= self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+            y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+            gl.glVertex2f(x,y)
+
+        gl.glEnd()
+#=================================================================================================
+
+
+# #=======the middle=========================================================================
+#         gl.glBegin(gl.GL_LINE_STRIP)
+#         gl.glColor4f(0.9, 0.0, 0.0, 1.0)
+#         for i in range(max(0,len(self.exp_area)-200),len(self.exp_area)):
+#             gl.glVertex2f(self.exp_area[i][0], self.exp_area[i][1])
+#         gl.glEnd()
+# #=======the right=========================================================================
+#         gl.glBegin(gl.GL_LINE_STRIP)
+#         gl.glColor4f(0.0, 0.9, 0.0, 1.0)
+#         for i in range(max(0,len(self.exp_area)-200),len(self.exp_area)):
+#             x= self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+#             y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+#             gl.glVertex2f(x,y)
+#         gl.glEnd()
+# #=======the left=========================================================================
+#         gl.glBegin(gl.GL_LINE_STRIP)
+#         gl.glColor4f(0.0, 0.0, 0.9, 1.0)
+#         for i in range(max(0,len(self.exp_area)-200),len(self.exp_area)):
+#             x= self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+#             y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+#             gl.glVertex2f(x,y)
+#         gl.glEnd()
+# #================================================================================
+
+
+
+        
+
     def render_road(self):
+
+        
         gl.glBegin(gl.GL_QUADS)
         gl.glColor4f(0.1, 0.3, 0.4, 1.0)
         gl.glVertex3f(-PLAYFIELD, +PLAYFIELD, 0)
@@ -560,6 +676,8 @@ class CarRacing1(gym.Env, EzPickle):
         #     gl.glColor4f(color[0], color[1], color[2], 1)
         #     for p in poly:
         #         gl.glVertex3f(p[0], p[1], 0)
+
+        
 
         for poly, color in self.grid_poly:
             gl.glColor4f(color[0], color[1], color[2], 0.5)
