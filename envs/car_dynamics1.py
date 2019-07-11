@@ -49,7 +49,7 @@ class Car:
                 #  fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in VIDUAL_DETECT ]), density=0.0)
                 ]
             )
-        self.hull.color = (1.0,1.0,0.2)
+        self.hull.color = (0.0,0.0,1.0)
         self.hull.no_touch = False
         #======================================================
         #======================================================
@@ -61,8 +61,8 @@ class Car:
                 ]
             )
         rjd = revoluteJointDef(
-                bodyA=self.hull,
-                bodyB=self.detect,
+                bodyA=self.detect,
+                bodyB=self.hull,
                 localAnchorA=(0,0),
                 localAnchorB=(0,0),
                 enableMotor=True,
@@ -74,7 +74,7 @@ class Car:
                 )
         self.detect.joint = self.world.CreateJoint(rjd)
         self.detect.no_touch = True
-        self.detect.color = (0.5,0.15,0.15)
+        self.detect.color = (0.0,1.0,0.0)
         #======================================================
         self.wheels = []
         self.fuel_spent = 0.0
@@ -121,7 +121,7 @@ class Car:
             w.userData = w
             self.wheels.append(w)
         #======================================================
-        self.drawlist =  self.wheels + [self.hull] + [self.detect]
+        self.drawlist =  self.wheels + [self.detect] + [self.hull] 
         self.particles = []
 
     def gas(self, gas):

@@ -6,42 +6,14 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 import gym
 from gym import spaces
 
-#from gym.envs.box2d.car_dynamics import Car
-
 from envs.car_dynamics1 import Car
-#from car_dynamics1 import Car
+
 
 from gym.utils import colorize, seeding, EzPickle
 
 import pyglet
 from pyglet import gl
 
-# Easiest continuous control task to learn from pixels, a top-down racing environment.
-# Discreet control is reasonable in this environment as well, on/off discretisation is
-# fine.
-#
-# State consists of STATE_W x STATE_H pixels.
-#
-# Reward is -0.1 every frame and +1000/N for every track tile visited, where N is
-# the total number of tiles in track. For example, if you have finished in 732 frames,
-# your reward is 1000 - 0.1*732 = 926.8 points.
-#
-# Game is solved when agent consistently gets 900+ points. Track is random every episode.
-#
-# Episode finishes when all tiles are visited. Car also can go outside of PLAYFIELD, that
-# is far off the track, then it will get -100 and die.
-#
-# Some indicators shown at the bottom of the window and the state RGB buffer. From
-# left to right: true speed, four ABS sensors, steering wheel position, gyroscope.
-#
-# To play yourself (it's rather fast for humans), type:
-#
-# python gym/envs/box2d/car_racing.py
-#
-# Remember it's powerful rear-wheel drive car, don't press accelerator and turn at the
-# same time.
-#
-# Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
 STATE_W = 96   # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
@@ -49,12 +21,16 @@ VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
 
-SCALE       = 6.0        # Track scale
+SCALE       = 5.0        # Track scale
 TRACK_RAD   = 200/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 500/SCALE # Game over boundary
 FPS         = 60         # Frames per second
-ZOOM        = 2.7        # Camera zoom
+ZOOM        = 3        # Camera zoom
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
+X_MAX = int(WINDOW_W/2+PLAYFIELD*3)
+X_MIN = int(WINDOW_W/2-PLAYFIELD*3)
+Y_MAX = int(WINDOW_H/2+PLAYFIELD*3)
+Y_MIN = int(WINDOW_H/2-PLAYFIELD*3)
 
 
 TRACK_DETAIL_STEP = 21/SCALE
@@ -79,8 +55,6 @@ class FrictionDetector(contactListener):
         obj = None
         u1 = contact.fixtureA.body.userData
         u2 = contact.fixtureB.body.userData
-
-        #print("there's a friction detect called!!!\n")
 
         if u1 and "road_friction" in u1.__dict__:
             tile = u1
@@ -151,9 +125,9 @@ class CarRacing1(gym.Env, EzPickle):
                 shape = polygonShape(vertices=
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
         self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
-        print(self.action_space)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-
+        #print(self.action_space)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(600,600, 3), dtype=np.uint8)
+        self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
 
     def seed(self, seed=None):
@@ -171,7 +145,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.grid= []
         self.grid_poly=[]
         self.car.destroy()
-    
+       
     def _create_gridmap(self):
         self.grid= []
         self.grid_poly=[]
@@ -194,14 +168,7 @@ class CarRacing1(gym.Env, EzPickle):
                 t.userData = t
 
                 c=0
-                # make the grid with diff color 
-                # c1 = 0.1*(x%6)
-                # c2 = 0.1*(y%6)
-                # if c1:
-                #     if c2: c=0.5
-                # else:
-                #     if not c2: c=0.5
-
+           
                 t.color = [GRID_COLOR[0] + c, GRID_COLOR[1] + c, GRID_COLOR[2] + c]
                 t.road_visited = False
                 t.road_friction = 1.0
@@ -227,17 +194,8 @@ class CarRacing1(gym.Env, EzPickle):
                     (k*x+3*k*0.95, k*y+3*k*0.05)
                 ],t.color))
          
-
-        # generate the objects which the robot will die if step on
-        # for obj in obj_id:
-        #     self.grid[obj].color = [0.8, 0.2, 0.2]
-
-        
-        # generate a start point in the map for the robot to start it's quest
-
-
         return True
-
+    '''
     def _create_track(self):
         CHECKPOINTS = 12
 
@@ -255,10 +213,6 @@ class CarRacing1(gym.Env, EzPickle):
                 rad = 1.5*TRACK_RAD
             checkpoints.append( (alpha, rad*math.cos(alpha), rad*math.sin(alpha)) )
 
-        # print "\n".join(str(h) for h in checkpoints)
-        # self.road_poly = [ (    # uncomment this to see checkpoints
-        #    [ (tx,ty) for a,tx,ty in checkpoints ],
-        #    (0.7,0.7,0.9) ) ]
         self.road = []
 
         # Go from one checkpoint to another to create track
@@ -391,6 +345,7 @@ class CarRacing1(gym.Env, EzPickle):
                 self.road_poly.append(( [b1_l, b1_r, b2_r, b2_l], (1,1,1) if i%2==0 else (1,0,0) ))
         self.track = track
         return True
+    '''
 
     def reset(self):
         #print('reset')
@@ -404,16 +359,15 @@ class CarRacing1(gym.Env, EzPickle):
         self.grid_poly = []
         self.start_grid=[]
         self.exp_area = []
+        self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
 
         while True:
-            #success = self._create_track()
             test = self._create_gridmap()
             if test:
 
                 break
             if self.verbose == 1:
                 print("retry to generate track (normal if there are not many of this messages)")
-        #self.car = Car(self.world, *self.track[0][1:4])
         self.car = Car(self.world, 0 , self.start_grid[0],self.start_grid[1])
 
 
@@ -430,17 +384,22 @@ class CarRacing1(gym.Env, EzPickle):
             self.car.gas(action[1])
             self.car.brake(action[2])
 
-            # if action[1] !=0:
-            #     self.reward += 0.3*np.abs(action[1])
-
         self.car.step(1.0/FPS)
         self.world.Step(1.0/FPS, 6*30, 2*30)
         self.t += 1.0/FPS
 
-        self.state = self.render("state_pixels")
-
+        state = self.pixcel_map[Y_MIN:Y_MAX,X_MIN:X_MAX,0:3]
+        #self.state = self.render("state_pixels")
+        self.state = state/255
         step_reward = 0
         done = False
+        map_area = self.pixcel_map[Y_MIN:Y_MAX,X_MIN:X_MAX,0]
+        count = np.count_nonzero(map_area)
+        #2=top left, 1 to left bottom, 4=right bottom
+        #print(map_area[0][0],map_area[599][0],map_area[599][599],map_area[0][599])
+        #print(count/360000*100,"%")
+        self.reward = count/360000*1000
+
         if action is not None: # First step without action, called from reset()
             #self.reward -= 0.1 #0.1
             # We actually don't want to count fuel spent, we want car to be faster.
@@ -448,13 +407,13 @@ class CarRacing1(gym.Env, EzPickle):
             # self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
             self.prev_reward = self.reward
-            if self.tile_visited_count==300: #len(self.track):
+            if count>=360000*0.6:
                 done = True
             x, y = self.car.hull.position
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
                 done = True
-                self.reward = -1000
-                step_reward = -1000
+                #self.reward = -1000
+                step_reward -= 1000
 
         return self.state, step_reward, done, {}
 
@@ -470,10 +429,7 @@ class CarRacing1(gym.Env, EzPickle):
 
         if "t" not in self.__dict__: return  # reset() not called yet
 
-        zoom=3.65
-        # zoom = 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
-        # zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
-        # zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
+        zoom=3
         
         scroll_x = self.car.hull.position[0]
         scroll_y = self.car.hull.position[1]
@@ -483,13 +439,8 @@ class CarRacing1(gym.Env, EzPickle):
             angle = math.atan2(vel[0], vel[1])
         self.transform.set_scale(zoom, zoom)
 
-        # self.transform.set_translation(
-        #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
-        #     WINDOW_H/4 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
         self.transform.set_translation(WINDOW_W/2,WINDOW_H/2)
 
-
-        # self.transform.set_rotation(angle)
         self.transform.set_rotation(0)
         self.car.draw(self.viewer, mode!="state_pixels")
 
@@ -497,6 +448,11 @@ class CarRacing1(gym.Env, EzPickle):
         win = self.viewer.window
         win.switch_to()
         win.dispatch_events()
+
+        # image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        # arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        # arr = arr.reshape(WINDOW_H, WINDOW_W, 4)
+        # last_frame = arr[:, :, ::-1]
 
         win.clear()
         t = self.transform
@@ -515,11 +471,22 @@ class CarRacing1(gym.Env, EzPickle):
 
         gl.glViewport(0, 0, VP_W, VP_H)
         t.enable()
+
+        self.render_background()
         self.render_pixcel_map()
 
         for geom in self.viewer.onetime_geoms:
             geom.render()
         self.viewer.onetime_geoms = []
+
+        # image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        # arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        # arr = arr.reshape(VP_H, VP_W, 4)
+        # current_frame = arr[:, :, ::-1]
+        # #arr = arr[::-1, ::-1, 0:4]
+
+        
+
         t.disable()
         self.render_indicators(WINDOW_W, WINDOW_H)
 
@@ -539,36 +506,155 @@ class CarRacing1(gym.Env, EzPickle):
             self.viewer.close()
             self.viewer = None
 
-    def render_pixcel_map(self):
-        from gym.envs.classic_control import rendering
-        image_data = pyglet.image.get_buffer_manager().get_color_buffer()
-        
-        #arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-        #arr = arr.reshape(VP_H, VP_W, 4)
+    # render background, not necessory=======================================================================
+    def render_background(self):
+        gl.glBegin(gl.GL_QUADS)
+        gl.glColor4f(1.0, 1.0, 1.0, 1.0)
+        gl.glVertex3f(-PLAYFIELD, +PLAYFIELD, 0)
+        gl.glVertex3f(+PLAYFIELD, +PLAYFIELD, 0)
+        gl.glVertex3f(+PLAYFIELD, -PLAYFIELD, 0)
+        gl.glVertex3f(-PLAYFIELD, -PLAYFIELD, 0)
+        gl.glEnd()
 
-        # render background, not necessory
-        # gl.glBegin(gl.GL_QUADS)
-        # gl.glColor4f(0.1, 0.8, 0.4, 1.0)
-        # gl.glVertex3f(-PLAYFIELD, +PLAYFIELD, 0)
-        # gl.glVertex3f(+PLAYFIELD, +PLAYFIELD, 0)
-        # gl.glVertex3f(+PLAYFIELD, -PLAYFIELD, 0)
-        # gl.glVertex3f(-PLAYFIELD, -PLAYFIELD, 0)
-        # gl.glEnd()
-        #testing render a numpy array:
+    def render_pixcel_map(self):
+        #from gym.envs.classic_control import rendering
+
+        # this will get the color buffer from opengl rendering process
+        # image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+
+        # this record the position and angle of the middle vertex of the triangle
+        #self.exp_area.append((self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle))
+        #i=-1
+        self.exp_area=[(self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle)]
+        i=0
+        x1=self.exp_area[i][0]
+        y1=self.exp_area[i][1]
+        x2=self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        y2=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+        x3=self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        y3=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+        v=np.array([[x1,y1],[x2,y2],[x3,y3]])
+        v=v*3
+        a=np.array([WINDOW_W/2, WINDOW_H/2]*3).reshape((3,2)).astype(dtype=np.uint32)
+        v=np.add(v,a).astype(dtype=np.uint32)
+
+        def area(x1, y1, x2, y2, x3, y3): 
+            return abs((x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0)
+  
+        
+        # A function to check whether point P(x, y) 
+        # lies inside the triangle formed by  
+        # A(x1, y1), B(x2, y2) and C(x3, y3)  
+        def isInside(x1, y1, x2, y2, x3, y3, x, y): 
+            x1, y1, x2, y2, x3, y3, x, y = float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), float(x), float(y)
+            # Calculate area of triangle ABC 
+            A = area (x1, y1, x2, y2, x3, y3) 
+        
+            # Calculate area of triangle PBC  
+            A1 = area (x, y, x2, y2, x3, y3) 
+            
+            # Calculate area of triangle PAC  
+            A2 = area (x1, y1, x, y, x3, y3) 
+            
+            # Calculate area of triangle PAB  
+            A3 = area (x1, y1, x2, y2, x, y) 
+            
+            # Check if sum of A1, A2 and A3  
+            # is same as A 
+            if(A == A1 + A2 + A3): 
+                return True
+            else: 
+                return False
+            
+
+        x_max, y_max = np.max(v, axis=0)
+        x_max = int(min(x_max, WINDOW_W/2+PLAYFIELD*3))
+        y_max = int(min(y_max, WINDOW_H/2+PLAYFIELD*3))
+        x_min, y_min = np.min(v, axis=0)
+        x_min = int(max(x_min, WINDOW_W/2-PLAYFIELD*3))
+        y_min = int(max(y_min, WINDOW_H/2-PLAYFIELD*3))
+
+        for x in range(x_min, x_max):
+            for y in range(y_min, y_max):
+                if isInside(v[0][0],v[0][1],v[1][0],v[1][1],v[2][0],v[2][1],x,y):
+                    self.pixcel_map[y][x] = [255,0,0,255]
+
+        # for item in v:
+        #     x,y = item.astype(dtype=np.uint32)
+        #     self.pixcel_map[y][x] = [250,0,250,255]
+
+        # self.pixcel_map[700,:] = [250,250,0,255] #800/2+100*3
+        # self.pixcel_map[100,:] = [250,0,0,255]
+        # self.pixcel_map[:,800] = [250,0,0,255]   #1000/2+100   
+        # self.pixcel_map[:,200] = [250,0,0,255]
+        gl.glDrawPixels(WINDOW_W, WINDOW_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
+         
+
+#=======================================================================
+#testing render a numpy array:
+# I had something else that would display a lot of dots, but now it's gone XD
+#=======================================================================
         # pixcel_map = np.zeros((96, 96, 4), dtype=np.uint32)
 
         # for y in range(96):
         #     for x in range(96):
-        #         pixcel_map[x][y][0] = 100 # np.random.randint(0,255)
-        #         pixcel_map[x][y][1] = 50 # np.random.randint(0,255)
-        #         pixcel_map[x][y][2] = 200 # np.random.randint(0,255)
-        #         pixcel_map[x][y][3] = 250 #np.random.randint(0,255)
+        #         pixcel_map[x][y][0] =  np.random.randint(0,255)
+        #         pixcel_map[x][y][1] =  np.random.randint(0,255)
+        #         pixcel_map[x][y][2] =  np.random.randint(0,255)
+        #         pixcel_map[x][y][3] =  np.random.randint(0,255)
 
+        # # this will slow the rendering by a lot, so it's working(as in consumming resources), but nothing was displayed
         # gl.glDrawPixels(96, 96, gl.GL_RGBA, gl.GL_UNSIGNED_INT , np.ascontiguousarray(pixcel_map).ctypes)
 
-        #self.viewer.draw_line((0,0), (50,50))
-        vertices = []
-        self.exp_area.append((self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle))
+        # this will draw some dots...
+        # kills FPS
+        # gl.glBegin(gl.GL_POINTS)
+        # for y in range(96):
+        #     for x in range(96):
+        #         gl.glColor4f(*pixcel_map[x][y])
+        #         gl.glVertex2i(x,y)
+        # gl.glEnd()
+        #pixcel_map = np.random.randint(50, 70, (WINDOW_W, WINDOW_H, 4), dtype=np.uint8)
+        #pixcel_map  = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        #pixcel_map = pixcel_map.reshape(96, 96, 4)
+
+            
+        #self.pixcel_map = np.multiply (np.add(self.pixcel_map, last_frame),np.logical_not(np.logical_xor(self.pixcel_map, last_frame))*255)
+        #self.pixcel_map = np.add(self.pixcel_map, last_frame)
+        #self.pixcel_map = np.logical_or(self.pixcel_map, last_frame)
+
+
+        #self.pixcel_map = np.random.randint(50, 100, (WINDOW_W, WINDOW_H, 4), dtype=np.uint8)
+        #self.pixcel_map[135:-135,135:-135]=[255, 0 ,0, 100]
+
+        #self.pixcel_map[:,0:5]=[255, 255 ,0, 255]
+        #self.pixcel_map[-5:-1,-5:-1]=[255, 0 ,250, 255]
+        # for i in range(len(self.exp_area)):
+        #     x1=self.exp_area[i][0]
+        #     y1=self.exp_area[i][1]
+        #     x2=self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y2=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+        #     x3=self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y3=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+        #     v=[(x1,y1),(x2,y2),(x3,y3)]
+        #     x1 = int(x1+WINDOW_W/2)
+        #     x2 = int(x2+WINDOW_W/2)
+        #     x3 = int(x3+WINDOW_W/2)
+        #     y1 = int(y1+WINDOW_H/2)
+        #     y2 = int(y2+WINDOW_H/2)
+        #     y3 = int(y3+WINDOW_H/2)
+
+        #     self.pixcel_map[y1][x1]=[255, 0, 0, 255]
+        #     self.pixcel_map[y2][x2]=[100, 255, 100, 255]
+        #     self.pixcel_map[y3][x3]=[100, 100, 255, 255]
+        #gl.glPixelZoom(WINDOW_W/5,WINDOW_W/5)
+        #gl.glDrawPixels(WINDOW_W, WINDOW_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
+
+#=======================================================================
+        # this does work, but limited to line, poly, circle
+        # https://github.com/openai/gym/blob/master/gym/envs/classic_control/rendering.py
+        # self.viewer.draw_line((0,0), (50,50)) 
+
 
 #This doesn't works, I don't know why=================================================================================================
         
@@ -606,22 +692,22 @@ class CarRacing1(gym.Env, EzPickle):
         #     self.viewer.draw_polygon(v,False,color=(0.9, 0.0, 0.0))
 #=================================================================================================
 #This works, but slows down after a while=================================================================================================
-        gl.glBegin(gl.GL_TRIANGLES)
-        gl.glColor4f(0.9, 0.0, 0.0, 1.0)
-        for i in range(max(0,len(self.exp_area)-500),len(self.exp_area)):
-        #i=-1
-            gl.glVertex2f(self.exp_area[i][0], self.exp_area[i][1])
-            x= self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
-            y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
-            gl.glVertex2f(x,y)
-            x= self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
-            y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
-            gl.glVertex2f(x,y)
+        # gl.glBegin(gl.GL_TRIANGLES)
+        # gl.glColor4f(0.9, 0.0, 0.0, 1.0)
+        # for i in range(max(0,len(self.exp_area)-500),len(self.exp_area)):
 
-        gl.glEnd()
+        #     gl.glVertex2f(self.exp_area[i][0], self.exp_area[i][1])
+        #     x= self.exp_area[i][0]+8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])+8 * math.sin(self.exp_area[i][2])
+        #     gl.glVertex2f(x,y)
+        #     x= self.exp_area[i][0]-8 * math.cos(self.exp_area[i][2])-16 * math.sin(self.exp_area[i][2])
+        #     y= self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
+        #     gl.glVertex2f(x,y)
+
+        # gl.glEnd()
 #=================================================================================================
 
-
+# the following code will trace the 3 vertex of the triangle
 # #=======the middle=========================================================================
 #         gl.glBegin(gl.GL_LINE_STRIP)
 #         gl.glColor4f(0.9, 0.0, 0.0, 1.0)
@@ -647,9 +733,6 @@ class CarRacing1(gym.Env, EzPickle):
 # #================================================================================
 
 
-
-        
-
     def render_road(self):
 
         
@@ -670,14 +753,10 @@ class CarRacing1(gym.Env, EzPickle):
         #         gl.glVertex3f(k*x+4*k*0.95, k*y+4*k*0.95, 0)
         #         gl.glVertex3f(k*x+4*k*0.95, k*y+4*k*0.05, 0)        
 
-
-
         # for poly, color in self.road_poly:
         #     gl.glColor4f(color[0], color[1], color[2], 1)
         #     for p in poly:
         #         gl.glVertex3f(p[0], p[1], 0)
-
-        
 
         for poly, color in self.grid_poly:
             gl.glColor4f(color[0], color[1], color[2], 0.5)

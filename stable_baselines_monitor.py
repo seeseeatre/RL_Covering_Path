@@ -89,9 +89,9 @@ env = DummyVecEnv([lambda: env])
 # Train the agent
 model = PPO2(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
 #model._load_from_file('D://Users//Han//Workspace//gym_learn//PPO2_DADS')
-model.learn(total_timesteps=int(1e5), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//PPO2_VDT')
-plot_results(log_dir)
+model.learn(total_timesteps=int(5e3), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//PPO2_PIX')
+#plot_results(log_dir)
 
 obs = env.reset()
 for i in range(10000):
