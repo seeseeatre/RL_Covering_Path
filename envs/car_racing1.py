@@ -6,7 +6,7 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 import gym
 from gym import spaces
 
-from envs.car_dynamics1 import Car
+from envs.car_dynamics1 import Car, Block
 
 
 from gym.utils import colorize, seeding, EzPickle
@@ -124,7 +124,8 @@ class CarRacing1(gym.Env, EzPickle):
         self.gd_tile = fixtureDef(
                 shape = polygonShape(vertices=
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
-        self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
+        #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
+        self.action_space = spaces.Discrete(6)
         #print(self.action_space)
         self.observation_space = spaces.Box(low=0, high=1, shape=(600,600, 3), dtype=np.uint8)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
@@ -145,6 +146,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.grid= []
         self.grid_poly=[]
         self.car.destroy()
+        self.testblock.destroy()
        
     def _create_gridmap(self):
         self.grid= []
@@ -369,7 +371,7 @@ class CarRacing1(gym.Env, EzPickle):
             if self.verbose == 1:
                 print("retry to generate track (normal if there are not many of this messages)")
         self.car = Car(self.world, 0 , self.start_grid[0],self.start_grid[1])
-
+        self.testblock = Block(self.world, 0 , self.start_grid[0]+50,self.start_grid[1]+50)
 
         return self.step(None)[0]
 
@@ -379,10 +381,47 @@ class CarRacing1(gym.Env, EzPickle):
         #     done = True
         #     return self.state, step_reward, done, {}
 
+        # if action is not None:
+        #     self.car.steer(-action[0])
+        #     self.car.gas(action[1])
+        #     self.car.brake(action[2])
         if action is not None:
-            self.car.steer(-action[0])
-            self.car.gas(action[1])
-            self.car.brake(action[2])
+        # forward
+            if action == 0:
+                self.car.gas(1)
+                #self.car.gas(0.3)
+                self.car.steer(0)
+                #self.reward += 10
+            # backward
+            elif action == 1:
+                self.car.gas(-1)
+                #self.car.gas(-0.3)
+                self.car.steer(0)
+                #self.reward += 10
+            # forward + left
+            elif action == 2:
+                self.car.gas(1)
+                #self.car.gas(0.3)
+                self.car.steer(1)
+                #self.reward -= 5
+            # forward + right
+            elif action == 3:
+                self.car.gas(1)
+                #self.car.gas(0.3)
+                self.car.steer(-1)
+                #self.reward -= 5
+            # backward + left
+            elif action == 4:
+                self.car.gas(-1)
+                #self.car.gas(-0.3)
+                self.car.steer(1)
+                #self.reward -= 5
+            # backward + right
+            elif action == 5:
+                self.car.gas(-1)
+                #self.car.gas(-0.3)
+                self.car.steer(-1)
+                #self.reward -= 5
 
         self.car.step(1.0/FPS)
         self.world.Step(1.0/FPS, 6*30, 2*30)
@@ -443,6 +482,7 @@ class CarRacing1(gym.Env, EzPickle):
 
         self.transform.set_rotation(0)
         self.car.draw(self.viewer, mode!="state_pixels")
+        self.testblock.draw(self.viewer)
 
         arr = None
         win = self.viewer.window
@@ -474,6 +514,7 @@ class CarRacing1(gym.Env, EzPickle):
 
         self.render_background()
         self.render_pixcel_map()
+        
 
         for geom in self.viewer.onetime_geoms:
             geom.render()
@@ -801,25 +842,40 @@ class CarRacing1(gym.Env, EzPickle):
 
 if __name__=="__main__":
     from pyglet.window import key
-    a = np.array( [0.0, 0.0, 0.0] )
+    a = np.array( [0.0, 0.0] )
+    da = np.array([0])
     def key_press(k, mod):
         global restart
         if k==0xff0d: restart = True
-        if k==key.LEFT:  a[0] = -0.3
-        if k==key.RIGHT: a[0] = +0.3
-        if k==key.UP:    a[1] = +1.0
-        if k==key.DOWN:  a[1] = -0.8   # set 1.0 for wheels to block to zero rotation
-        if k==key.SPACE:  a[2] = +0.8
+        # if k==key.LEFT:  a[0] = -0.3
+        # if k==key.RIGHT: a[0] = +0.3
+        # if k==key.UP:    a[1] = +1.0
+        # if k==key.DOWN:  a[1] = -0.8   # set 1.0 for wheels to block to zero rotation
+        #if k==key.SPACE:  a[2] = +0.8
+        
+        if k==key.LEFT:  da[0]= +2
+        if k==key.RIGHT: da[0]= +3
+        if k==key.UP:    da[0]= +0
+        if k==key.DOWN:  da[0]= +1
+        #print('=========DA after key press: ',da[0])
+
     def key_release(k, mod):
-        if k==key.LEFT:   a[0] = 0
-        if k==key.RIGHT:  a[0] = 0
-        if k==key.UP:    a[1] = 0
-        if k==key.DOWN:  a[1] = 0
-        if k==key.SPACE:  a[2] = 0
+        # if k==key.LEFT:   a[0] = 0
+        # if k==key.RIGHT:  a[0] = 0
+        # if k==key.UP:    a[1] = 0
+        # if k==key.DOWN:  a[1] = 0
+        #if k==key.SPACE:  a[2] = 0
+
+        if k==key.LEFT:  da[0]=0
+        if k==key.RIGHT: da[0]=0
+        if k==key.UP:    da[0]=0
+        if k==key.DOWN:  da[0]=0
+
     env = CarRacing1()
     env.render()
     env.viewer.window.on_key_press = key_press
     env.viewer.window.on_key_release = key_release
+    
     record_video = False
     if record_video:
         from gym.wrappers.monitor import Monitor
@@ -831,12 +887,13 @@ if __name__=="__main__":
         steps = 0
         restart = False
         while True:
-            s, r, done, info = env.step(a)
+            #print('=========DA before send: ', da[0])
+            s, r, done, info = env.step(da[0])
             total_reward += r
             # if total_reward < -200:
             #     done = True
             if steps % 200 == 0 or done:
-                print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
+                #print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
                 #import matplotlib.pyplot as plt
                 #plt.imshow(s)

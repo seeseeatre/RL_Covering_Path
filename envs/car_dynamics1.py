@@ -282,3 +282,41 @@ class Car:
             self.world.DestroyBody(w)
         self.wheels = []
 
+
+class Block:
+    def __init__(self, world, init_angle, position_x, position_y):
+        self.world = world
+        self.drawlist = []
+        for b in range(10):
+        #===============define a object============
+            self.shapeBlock = self.world.CreateBody(
+                position = (int(np.random.random_integers(-80,80)), int(np.random.random_integers(-80,80))),
+                angle = init_angle,
+                fixtures = [ 
+                    fixtureDef(shape = circleShape(radius=int(np.random.random_integers(5,15))), density = 1.0)
+                    ]
+            )
+            self.shapeBlock.color1 = (0.2,0.2,0.2)
+            self.shapeBlock.color2 = (0.4,0.4,0.4)
+            #==========================================
+            
+            self.drawlist.append(self.shapeBlock)
+            
+
+    def draw(self, viewer):
+        from gym.envs.classic_control import rendering
+
+        for obj in self.drawlist:
+            for f in obj.fixtures:
+                trans = f.body.transform
+                t = rendering.Transform(translation=trans*f.shape.pos)
+                viewer.draw_circle(f.shape.radius, 30, color=obj.color1).add_attr(t)
+                viewer.draw_circle(f.shape.radius, 30, color=obj.color2, filled=False, linewidth=2).add_attr(t)
+
+
+    def destroy(self):
+        for b in range(10):
+            self.world.DestroyBody(self.drawlist[b])
+        self.drawlist = []
+        # self.world.DestroyBody(self.shapeBlock)
+        # self.shapeBlock = None
