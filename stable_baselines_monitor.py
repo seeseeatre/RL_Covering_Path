@@ -5,13 +5,14 @@ import envs
 import numpy as np
 import matplotlib.pyplot as plt
 
-from stable_baselines.ddpg.policies import LnMlpPolicy
-from stable_baselines.common.policies import MlpPolicy
+#from stable_baselines.ddpg.policies import LnMlpPolicy
+from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.bench import Monitor
 from stable_baselines.results_plotter import load_results, ts2xy
-from stable_baselines import DDPG
-from stable_baselines.ddpg import AdaptiveParamNoiseSpec
+#from stable_baselines import DDPG
+#from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines import PPO2
 
 
@@ -82,20 +83,34 @@ env = gym.make('CarRacing-v1')
 
 env = Monitor(env, log_dir, allow_early_resets=True)
 env = DummyVecEnv([lambda: env])
+
 # Add some param noise for exploration
 #param_noise = AdaptiveParamNoiseSpec(initial_stddev=0.1, desired_action_stddev=0.1)
 # Because we use parameter noise, we should use a MlpPolicy with layer normalization
 #model = DDPG(LnMlpPolicy, env, param_noise=param_noise, verbose=0)
 # Train the agent
-model = PPO2(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-#model._load_from_file('D://Users//Han//Workspace//gym_learn//PPO2_DADS')
-model.learn(total_timesteps=int(5e3), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//PPO2_PIX')
-#plot_results(log_dir)
+# n_cpu = 4
+# env = SubprocVecEnv([lambda: gym.make('CartPole-v1') for i in range(n_cpu)])
+# env = Monitor(env, log_dir, allow_early_resets=True)
+
+model = PPO2(MlpLstmPolicy, env, verbose=0, nminibatches=1, tensorboard_log="./test_tensorboard/")
+model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpLnLstmPolicy_PIX')
+model.learn(total_timesteps=int(1e6), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpLnLstmPolicy_PIX')
+plot_results(log_dir)
 
 obs = env.reset()
+reward_sum = 0.0
 for i in range(10000):
     action, _states = model.predict(obs)
     #print("action: ", action)
     obs, rewards, dones, info = env.step(action)
+    reward_sum += rewards
+    # import matplotlib.pyplot as plt
+    # plt.imshow(obs[0]*255)
+    # plt.savefig("test.jpeg")
     env.render()
+    if dones:
+        print("reward: ", reward_sum)
+        reward_sum = 0.0
+        obs = env.reset()
