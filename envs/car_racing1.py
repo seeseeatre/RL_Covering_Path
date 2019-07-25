@@ -71,8 +71,10 @@ class FrictionDetector(contactListener):
         if not obj or "tiles" not in obj.__dict__:
             return
         if begin:
-            if tile.block==True and not obj.no_touch:
-                self.env.reward -= 200
+            if tile.block==True:
+                self.env.reward += 200
+                self.env.tile_visited_count+=1
+                tile.block=False
 
 class CarRacing1(gym.Env, EzPickle):
     metadata = {
@@ -105,13 +107,15 @@ class CarRacing1(gym.Env, EzPickle):
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(1,int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2*4+3)), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
         self.last_count = 0
         self.block = []
         self.block_poly=[]
         self.time_to_die = 0
+        #self.testblock = Block(self.world, 0 , 0,0)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -133,8 +137,10 @@ class CarRacing1(gym.Env, EzPickle):
 
     def _create_pixcel_block(self):
 
-        x = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
-        y = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
+        #x = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
+        #y = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
+        x = [90, 90, -90, -90, 50, -66, -60, 76, 38, -59, 0]
+        y = [90, -90, -90, 90, 50, -66, -40, 38, -27, 38, 0]
         for b in range(NUM_OBJ): 
             vertices = [(x[b]+5, y[b]+5),
                     (x[b]+5, y[b]-5),
@@ -159,7 +165,7 @@ class CarRacing1(gym.Env, EzPickle):
             bbyn = int((y[b]-5)*ZOOM + WINDOW_H/2)
             for i in range(bbxn, bbxx):
                 for j in range(bbyn, bbyx):
-                    self.pixcel_map[j][i]=[255,25,25,25]
+                    self.pixcel_map[j][i]=[255,99,99,99]
 
 
         self.start_grid =(x[-1], y[-1])
@@ -200,37 +206,33 @@ class CarRacing1(gym.Env, EzPickle):
         #     done = True
         #     return self.state, step_reward, done, {}
         #self.reward += 0.05 #0.1
-        # if action is not None:
-        #     self.car.steer(-action[0])
-        #     self.car.gas(action[1])
-        #     self.car.brake(action[2])
         if action is not None:
         # forward
             if action == 0:
-                self.car.gas(1)
+                self.car.gas(0.5)
                 self.car.steer(0)
             # backward
             elif action == 1:
-                self.car.gas(-1)
+                self.car.gas(-0.5)
                 self.car.steer(0)
             # forward + left
             elif action == 2:
-                self.car.gas(1)
+                self.car.gas(0.5)
                 self.car.steer(1)
                 #self.reward -= 5
             # forward + right
             elif action == 3:
-                self.car.gas(1)
+                self.car.gas(0.5)
                 self.car.steer(-1)
                 #self.reward -= 5
             # backward + left
             elif action == 4:
-                self.car.gas(-1)
+                self.car.gas(-0.5)
                 self.car.steer(1)
                 #self.reward -= 5
             # backward + right
             elif action == 5:
-                self.car.gas(-1)
+                self.car.gas(-0.5)
                 self.car.steer(-1)
                 #self.reward -= 5
 
@@ -239,20 +241,26 @@ class CarRacing1(gym.Env, EzPickle):
         self.t += 1.0/FPS
 
         x, y = self.car.hull.position
-        if abs(x) <= PLAYFIELD*0.6 and abs(y) <= PLAYFIELD*0.6:
-            self.reward += 0.1
+
+        px = (x+PLAYFIELD)/(2*PLAYFIELD)
+        py = (y+PLAYFIELD)/(2*PLAYFIELD)
+        pangle = (self.car.hull.angle%(2*math.pi))/(2*math.pi)
+
+        if abs(x) >= PLAYFIELD*0.8 and abs(y) >= PLAYFIELD*0.8:
+            self.reward -= 1
         # else:
-        #     self.reward -= 0.5
+        #     self.reward -= 0.1
         # if abs(x) >= PLAYFIELD*0.9 or abs(y) >= PLAYFIELD*0.9:
         #     self.reward -= 10
         x=(x*ZOOM+WINDOW_W/2)
         y=(y*ZOOM+WINDOW_H/2)
-        carinfo = [x,y,self.car.hull.angle]
+
+        carinfo = [px,py,pangle]
         x = min(int(x),598)
         x = max(int(x),1)
         y = min(int(y),598)
         y = max(int(y),1)
-        if self.pixcel_map[y][x][1] != 25:
+        if self.pixcel_map[y][x][1] != 99:
             self.pixcel_map[y][x] = [255,255,0,0]
             self.pixcel_map[y][x+1] = [255,255,0,0]
             self.pixcel_map[y][x-1] = [255,255,0,0]
@@ -260,11 +268,11 @@ class CarRacing1(gym.Env, EzPickle):
             self.pixcel_map[y-1][x] = [255,255,0,0]
         state = self.pixcel_map[Y_MIN:Y_MAX,X_MIN:X_MAX,0:4]
 
-        self.state = state[:,:,::-1]/255
-        self.state = self.state.reshape((1,int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2*4)))
-        
-        self.state = np.append(carinfo,self.state)
-        #self.state = self.state[:,:,0:3]
+        state = state[:,:,::-1]/255
+        self.state = state[:,:,0:3]
+        self.state = self.state.reshape(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2),3)
+        self.state = np.vstack([carinfo,self.state])
+
         #self.state = self.render("state_pixels")
 
         step_reward = 0
@@ -274,31 +282,40 @@ class CarRacing1(gym.Env, EzPickle):
         #2=top left, 1 to left bottom, 4=right bottom
         #print(map_area[0][0],map_area[599][0],map_area[599][599],map_area[0][599])
         #print(count/360000*100,"%")
-        if (count/50 - self.last_count/50) >= 0:
-            self.reward += (count/15 - self.last_count/15)
+        #if (count - self.last_count) >= 0:
+        self.reward += np.abs(count - self.last_count)/10
+        #self.reward += count/10000
         self.last_count = count
 
-        if self.time_to_die >= 2000:
-            #print("time to die!")
-            self.reward += 500
-            self.time_to_die = 0
+        # if self.time_to_die == 2000:
+        #     #print("time to die!")
+        #     self.reward += 500
+        #     self.time_to_die = 0
             #done = True
 
         if action is not None: # First step without action, called from reset()
-            #self.reward -= 0.1 #0.1
+            self.reward -= 0.5 #0.1
             step_reward = self.reward - self.prev_reward
             # if step_reward == 0:
             #     step_reward -= 0.5
-            if step_reward > 1:
-                step_reward = step_reward * step_reward
+            # if step_reward > 1:
+            #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            if count>=(40000-NUM_OBJ*20*20)*0.4:
+            #step_reward += count/10
+            # if step_reward < -100:
+            #     step_reward -= 1000
+            #     done = True
+
+            if self.tile_visited_count==6:
+                step_reward += 1000
+                done = True
+            if count>=(40000-NUM_OBJ*20*20)*0.3:
                 step_reward += 1000
                 done = True
             x, y = self.car.hull.position
             # if abs(x) > PLAYFIELD*0.9 or abs(y) > PLAYFIELD*0.9:
             #     step_reward -= 100
-            if abs(x) > PLAYFIELD*1.1 or abs(y) > PLAYFIELD*1.1:
+            if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
                 done = True
                 #self.reward = -1000
                 step_reward -= 1000
@@ -452,7 +469,7 @@ class CarRacing1(gym.Env, EzPickle):
 
         for x in range(x_min, x_max):
             for y in range(y_min, y_max):
-                if self.pixcel_map[y][x][1] == 25:
+                if self.pixcel_map[y][x][1] == 99:
                     continue
                 elif isInside(v[0][0],v[0][1],v[1][0],v[1][1],v[2][0],v[2][1],x,y):
                     self.pixcel_map[y][x] = [255,0,0,255]
@@ -549,9 +566,9 @@ if __name__=="__main__":
             if steps % 200 == 0 or done:
                 #print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                import matplotlib.pyplot as plt
-                plt.imshow(s)
-                plt.savefig("test.jpeg")
+                # import matplotlib.pyplot as plt
+                # plt.imshow(s)
+                # plt.savefig("test.jpeg")
             steps += 1
             isopen = env.render()
             if done or restart or isopen == False:
