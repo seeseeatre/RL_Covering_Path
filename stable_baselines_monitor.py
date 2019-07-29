@@ -4,6 +4,7 @@ import gym
 import envs
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 #from stable_baselines.ddpg.policies import LnMlpPolicy
 from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
@@ -95,23 +96,51 @@ env = DummyVecEnv([lambda: env])
 
 # model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
 model = A2C(CnnLstmPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_CnnLstmPolicy_PIX_SMALL.pkl')
-# model.learn(total_timesteps=int(5e5), callback=callback)
-# model._save_to_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL')
-# plot_results(log_dir)
+model._load_from_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL_EMPTY.pkl')
+model.learn(total_timesteps=int(1e5), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL_EMPTY.pkl')
+plot_results(log_dir)
 
 obs = env.reset()
 reward_sum = 0.0
+action_history = np.zeros(6)
+action_sum = np.zeros(6)
+ep_length = 0
+ep_length_record = []
 for i in range(10000):
-    action, _states = model.predict(obs)
-    #print("action: ", action)
-    obs, rewards, dones, info = env.step(action)
-    reward_sum += rewards
-    # import matplotlib.pyplot as plt
-    # plt.imshow(obs[0]*255)
-    # plt.savefig("test.jpeg")
-    env.render()
-    if dones:
-        print("reward: ", reward_sum)
-        reward_sum = 0.0
-        obs = env.reset()
+	action = [random.randint(0,5)]
+	action_history[action]+=1
+	action_sum[action]+=1
+	obs, rewards, dones, info = env.step(action)
+	reward_sum += rewards
+
+	ep_length += 1
+
+	# if i % 100 == 0:
+	# 	import matplotlib.pyplot as plt
+	# 	plt.imshow(obs[0]*255)
+	# 	plt.savefig("test.jpeg")
+
+	env.render()
+	if dones:
+		# import matplotlib.pyplot as plt
+		# plt.imshow(obs[0]*255)
+		# plt.savefig("test.jpeg")
+		
+		print("reward: ", reward_sum)
+		reward_sum = 0.0
+
+		print("actions: ", action_history/ep_length)
+		action_history = np.zeros(6)
+
+		print("Episode length: ", ep_length)
+		ep_length_record.append(ep_length)
+		ep_length = 0
+
+		obs = env.reset()
+if ep_length >0:
+  ep_length_record.append(ep_length)
+
+print("all actions: ", action_sum/len(ep_length_record))
+ep_length_avg = sum(ep_length_record) / len(ep_length_record)
+print("Average Episode Length: ", ep_length_avg)

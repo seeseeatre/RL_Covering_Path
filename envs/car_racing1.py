@@ -43,7 +43,7 @@ ROAD_COLOR = [0.4, 0.4, 0.4]
 GRID_COLOR = [0.2, 0.9, 0.2]
 BLOCK_COLOR = [0.1, 0.1, 0.1]
 
-NUM_OBJ=15
+NUM_OBJ=0 #15
 
 class FrictionDetector(contactListener):
     def __init__(self, env):
@@ -136,10 +136,10 @@ class CarRacing1(gym.Env, EzPickle):
 
     def _create_pixcel_block(self):
 
-        #x = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
-        #y = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
-        x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
-        y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
+        x = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
+        y = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
+        #x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
+        #y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
         for b in range(NUM_OBJ): 
             vertices = [(x[b]+5, y[b]+5),
                     (x[b]+5, y[b]-5),
@@ -292,42 +292,30 @@ class CarRacing1(gym.Env, EzPickle):
         # if (count - self.last_count) <= 10:
         #     self.reward -= 0.1
         self.reward += np.abs(count - self.last_count)/10
-        
-            
-        #self.reward += count/10000
         self.last_count = count
 
-        if self.time_to_die >= 2000:
-            #print("time to die!")
-            #self.reward += 500
-            self.time_to_die = 0
-            done = True
+        # if self.time_to_die > 3000:
+        #     #print("time to die!")
+        #     #self.reward += 500
+        #     self.time_to_die = 0
+        #     done = True
 
         if action is not None: # First step without action, called from reset()
-            self.reward += 0.1 #0.1
+            #self.reward += 0.1 #0.1
             step_reward = self.reward - self.prev_reward
             # if step_reward < 1:
             #     step_reward -= 0.5
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            #step_reward += count/10
-            # if step_reward < -100:
-            #     step_reward -= 1000
-            #     done = True
-
-            # if self.tile_visited_count==6:
-            #     step_reward += 1000
-            #     done = True
-            if count>=(40000-NUM_OBJ*20*20)*0.5:
+            if count>=(40000-NUM_OBJ*20*20)*0.2:
                 step_reward += 1000
                 done = True
             x, y = self.car.hull.position
-            # if abs(x) > PLAYFIELD*0.9 or abs(y) > PLAYFIELD*0.9:
-            #     step_reward -= 100
+
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
                 done = True
-                step_reward -= 100
+                step_reward -= 1000
 
         return self.state, step_reward, done, {}
 
