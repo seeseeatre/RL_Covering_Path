@@ -43,7 +43,7 @@ ROAD_COLOR = [0.4, 0.4, 0.4]
 GRID_COLOR = [0.2, 0.9, 0.2]
 BLOCK_COLOR = [0.1, 0.1, 0.1]
 
-NUM_OBJ=10
+NUM_OBJ=15
 
 class FrictionDetector(contactListener):
     def __init__(self, env):
@@ -71,10 +71,8 @@ class FrictionDetector(contactListener):
         if not obj or "tiles" not in obj.__dict__:
             return
         if begin:
-            if tile.block==True:
-                self.env.reward += 200
-                self.env.tile_visited_count+=1
-                tile.block=False
+            if tile.block==True and not obj.no_touch:
+                self.env.reward -= 200
 
 class CarRacing1(gym.Env, EzPickle):
     metadata = {
@@ -107,7 +105,8 @@ class CarRacing1(gym.Env, EzPickle):
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(96,96,3), dtype=np.float32)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
@@ -139,8 +138,8 @@ class CarRacing1(gym.Env, EzPickle):
 
         #x = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
         #y = np.random.uniform(-PLAYFIELD+15, PLAYFIELD-15, NUM_OBJ+1)
-        x = [90, 90, -90, -90, 50, -66, -60, 76, 38, -59, 0]
-        y = [90, -90, -90, 90, 50, -66, -40, 38, -27, 38, 0]
+        x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
+        y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
         for b in range(NUM_OBJ): 
             vertices = [(x[b]+5, y[b]+5),
                     (x[b]+5, y[b]-5),
@@ -195,7 +194,7 @@ class CarRacing1(gym.Env, EzPickle):
                 print("retry to generate track (normal if there are not many of this messages)")
         self.car = Car(self.world, 0 , 0,0)
         #self.testblock = Block(self.world, 0 , self.start_grid[0]+50,self.start_grid[1]+50)
-
+        self.time_to_die = 0
         return self.step(None)[0]
 
     def step(self, action):
@@ -209,12 +208,14 @@ class CarRacing1(gym.Env, EzPickle):
         if action is not None:
         # forward
             if action == 0:
-                self.car.gas(0.5)
+                self.car.gas(10.5)
                 self.car.steer(0)
+                #self.reward += 1
             # backward
             elif action == 1:
-                self.car.gas(-0.5)
+                self.car.gas(-10.5)
                 self.car.steer(0)
+                #self.reward += 1
             # forward + left
             elif action == 2:
                 self.car.gas(0.5)
@@ -246,8 +247,8 @@ class CarRacing1(gym.Env, EzPickle):
         py = (y+PLAYFIELD)/(2*PLAYFIELD)
         pangle = (self.car.hull.angle%(2*math.pi))/(2*math.pi)
 
-        if abs(x) >= PLAYFIELD*0.8 and abs(y) >= PLAYFIELD*0.8:
-            self.reward -= 1
+        # if abs(x) >= PLAYFIELD*0.8 and abs(y) >= PLAYFIELD*0.8:
+        #     self.reward -= 1
         # else:
         #     self.reward -= 0.1
         # if abs(x) >= PLAYFIELD*0.9 or abs(y) >= PLAYFIELD*0.9:
@@ -266,12 +267,18 @@ class CarRacing1(gym.Env, EzPickle):
             self.pixcel_map[y][x-1] = [255,255,0,0]
             self.pixcel_map[y+1][x] = [255,255,0,0]
             self.pixcel_map[y-1][x] = [255,255,0,0]
-        state = self.pixcel_map[Y_MIN:Y_MAX,X_MIN:X_MAX,0:4]
+        
+        temp_map = self.pixcel_map
+        temp_map[Y_MIN-10:Y_MAX+10,X_MIN-10:X_MIN,:] = [255,99,99,99]
+        temp_map[Y_MIN-10:Y_MAX+10,X_MAX:X_MAX+10,:] = [255,99,99,99]
+        temp_map[Y_MIN-10:Y_MIN,X_MIN-10:X_MAX+10,:] = [255,99,99,99]
+        temp_map[Y_MAX:Y_MAX+10,X_MIN-10:X_MAX+10,:] = [255,99,99,99]
+        state = temp_map[y-48:y+48,x-48:x+48,0:4]
 
         state = state[:,:,::-1]/255
         self.state = state[:,:,0:3]
-        self.state = self.state.reshape(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2),3)
-        self.state = np.vstack([carinfo,self.state])
+        # self.state = self.state.reshape(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2),3)
+        # self.state = np.vstack([carinfo,self.state])
 
         #self.state = self.render("state_pixels")
 
@@ -282,21 +289,24 @@ class CarRacing1(gym.Env, EzPickle):
         #2=top left, 1 to left bottom, 4=right bottom
         #print(map_area[0][0],map_area[599][0],map_area[599][599],map_area[0][599])
         #print(count/360000*100,"%")
-        #if (count - self.last_count) >= 0:
+        # if (count - self.last_count) <= 10:
+        #     self.reward -= 0.1
         self.reward += np.abs(count - self.last_count)/10
+        
+            
         #self.reward += count/10000
         self.last_count = count
 
-        # if self.time_to_die == 2000:
-        #     #print("time to die!")
-        #     self.reward += 500
-        #     self.time_to_die = 0
-            #done = True
+        if self.time_to_die >= 2000:
+            #print("time to die!")
+            #self.reward += 500
+            self.time_to_die = 0
+            done = True
 
         if action is not None: # First step without action, called from reset()
-            self.reward -= 0.5 #0.1
+            self.reward += 0.1 #0.1
             step_reward = self.reward - self.prev_reward
-            # if step_reward == 0:
+            # if step_reward < 1:
             #     step_reward -= 0.5
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
@@ -306,10 +316,10 @@ class CarRacing1(gym.Env, EzPickle):
             #     step_reward -= 1000
             #     done = True
 
-            if self.tile_visited_count==6:
-                step_reward += 1000
-                done = True
-            if count>=(40000-NUM_OBJ*20*20)*0.3:
+            # if self.tile_visited_count==6:
+            #     step_reward += 1000
+            #     done = True
+            if count>=(40000-NUM_OBJ*20*20)*0.5:
                 step_reward += 1000
                 done = True
             x, y = self.car.hull.position
@@ -317,8 +327,7 @@ class CarRacing1(gym.Env, EzPickle):
             #     step_reward -= 100
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
                 done = True
-                #self.reward = -1000
-                step_reward -= 1000
+                step_reward -= 100
 
         return self.state, step_reward, done, {}
 
@@ -566,9 +575,9 @@ if __name__=="__main__":
             if steps % 200 == 0 or done:
                 #print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                # import matplotlib.pyplot as plt
-                # plt.imshow(s)
-                # plt.savefig("test.jpeg")
+                import matplotlib.pyplot as plt
+                plt.imshow(s)
+                plt.savefig("test.jpeg")
             steps += 1
             isopen = env.render()
             if done or restart or isopen == False:

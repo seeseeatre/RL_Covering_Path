@@ -6,14 +6,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #from stable_baselines.ddpg.policies import LnMlpPolicy
-from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy
+from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.bench import Monitor
 from stable_baselines.results_plotter import load_results, ts2xy
 #from stable_baselines import DDPG
 #from stable_baselines.ddpg import AdaptiveParamNoiseSpec
-from stable_baselines import PPO2
+from stable_baselines import PPO2, A2C
 
 
 best_mean_reward, n_steps = -np.inf, 0
@@ -93,11 +93,12 @@ env = DummyVecEnv([lambda: env])
 # env = SubprocVecEnv([lambda: gym.make('CartPole-v1') for i in range(n_cpu)])
 # env = Monitor(env, log_dir, allow_early_resets=True)
 
-model = PPO2(MlpLstmPolicy, env, verbose=0, nminibatches=1, tensorboard_log="./test_tensorboard/")
-model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpLnLstmPolicy_PIX')
-model.learn(total_timesteps=int(1e6), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpLnLstmPolicy_PIX')
-plot_results(log_dir)
+# model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
+model = A2C(CnnLstmPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
+model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_CnnLstmPolicy_PIX_SMALL.pkl')
+# model.learn(total_timesteps=int(5e5), callback=callback)
+# model._save_to_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL')
+# plot_results(log_dir)
 
 obs = env.reset()
 reward_sum = 0.0
