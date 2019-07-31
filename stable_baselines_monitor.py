@@ -15,6 +15,7 @@ from stable_baselines.results_plotter import load_results, ts2xy
 #from stable_baselines import DDPG
 #from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines import PPO2, A2C
+from stable_baselines import TRPO
 
 
 best_mean_reward, n_steps = -np.inf, 0
@@ -95,10 +96,11 @@ env = DummyVecEnv([lambda: env])
 # env = Monitor(env, log_dir, allow_early_resets=True)
 
 # model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
-model = A2C(CnnLstmPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-model._load_from_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL_EMPTY.pkl')
-model.learn(total_timesteps=int(1e5), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//model//A2C_CnnLstmPolicy_PIX_SMALL_EMPTY.pkl')
+# n_steps=10, gamma=0.75, 
+model = TRPO(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
+model._load_from_file('D://Users//Han//Workspace//gym_learn//model//TRPO_MlpPolicy_PIX_SMALL_EMPTY_TTD.pkl')
+model.learn(total_timesteps=int(1e6), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//model//TRPO_MlpPolicy_PIX_SMALL_EMPTY_TTD.pkl')
 plot_results(log_dir)
 
 obs = env.reset()

@@ -24,7 +24,7 @@ WINDOW_H = 600
 SCALE       = 5.0        # Track scale
 TRACK_RAD   = 200/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 500/SCALE # Game over boundary
-FPS         = 60         # Frames per second
+FPS         = 30         # Frames per second
 ZOOM        = 1        # Camera zoom
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
 X_MAX = int(WINDOW_W/2+PLAYFIELD*ZOOM)
@@ -106,7 +106,7 @@ class CarRacing1(gym.Env, EzPickle):
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(96,96,3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.float32)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
@@ -242,6 +242,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.t += 1.0/FPS
 
         x, y = self.car.hull.position
+        # i, j = self.car.detect.position
 
         px = (x+PLAYFIELD)/(2*PLAYFIELD)
         py = (y+PLAYFIELD)/(2*PLAYFIELD)
@@ -269,13 +270,13 @@ class CarRacing1(gym.Env, EzPickle):
             self.pixcel_map[y-1][x] = [255,255,0,0]
         
         temp_map = self.pixcel_map
-        temp_map[Y_MIN-10:Y_MAX+10,X_MIN-10:X_MIN,:] = [255,99,99,99]
-        temp_map[Y_MIN-10:Y_MAX+10,X_MAX:X_MAX+10,:] = [255,99,99,99]
-        temp_map[Y_MIN-10:Y_MIN,X_MIN-10:X_MAX+10,:] = [255,99,99,99]
-        temp_map[Y_MAX:Y_MAX+10,X_MIN-10:X_MAX+10,:] = [255,99,99,99]
+        temp_map[Y_MIN-50:Y_MAX+50,X_MIN-50:X_MIN,:] = [255,99,99,99]
+        temp_map[Y_MIN-50:Y_MAX+50,X_MAX:X_MAX+50,:] = [255,99,99,99]
+        temp_map[Y_MIN-50:Y_MIN,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
+        temp_map[Y_MAX:Y_MAX+50,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
         state = temp_map[y-48:y+48,x-48:x+48,0:4]
 
-        state = state[:,:,::-1]/255
+        state = state[:,:,::-1]
         self.state = state[:,:,0:3]
         # self.state = self.state.reshape(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2),3)
         # self.state = np.vstack([carinfo,self.state])
@@ -294,9 +295,9 @@ class CarRacing1(gym.Env, EzPickle):
         self.reward += np.abs(count - self.last_count)/10
         self.last_count = count
 
-        # if self.time_to_die > 3000:
+        # if self.time_to_die > 10000:
         #     #print("time to die!")
-        #     #self.reward += 500
+        #     #self.reward -= 1000
         #     self.time_to_die = 0
         #     done = True
 
@@ -308,14 +309,18 @@ class CarRacing1(gym.Env, EzPickle):
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            if count>=(40000-NUM_OBJ*20*20)*0.2:
+            if count>=(40000-NUM_OBJ*20*20)*0.15:
                 step_reward += 1000
+                #print("WTF! I fucking Won??!!")
                 done = True
             x, y = self.car.hull.position
-
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
-                done = True
+                # self.reward -= 1000
                 step_reward -= 1000
+                done = True
+            # if abs(x) > PLAYFIELD*1.5 or abs(y) > PLAYFIELD*1.5:
+            #     done = True
+            #     step_reward -= 1000
 
         return self.state, step_reward, done, {}
 
@@ -468,7 +473,10 @@ class CarRacing1(gym.Env, EzPickle):
             for y in range(y_min, y_max):
                 if self.pixcel_map[y][x][1] == 99:
                     continue
+                elif self.pixcel_map[y][x][1] == 255:
+                    continue
                 elif isInside(v[0][0],v[0][1],v[1][0],v[1][1],v[2][0],v[2][1],x,y):
+                    
                     self.pixcel_map[y][x] = [255,0,0,255]
         #self.pixcel_map[v[0][1]][v[0][0]] = [0,255,0,255]
         gl.glDrawPixels(VP_W, VP_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
