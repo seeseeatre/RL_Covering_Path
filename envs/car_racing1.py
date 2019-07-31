@@ -106,7 +106,8 @@ class CarRacing1(gym.Env, EzPickle):
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(int(96*96)+1,3), dtype=np.float32)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
@@ -241,6 +242,8 @@ class CarRacing1(gym.Env, EzPickle):
         self.world.Step(1.0/FPS, 6*30, 2*30)
         self.t += 1.0/FPS
 
+        self.render_pixcel_map()
+
         x, y = self.car.hull.position
         # i, j = self.car.detect.position
 
@@ -257,7 +260,7 @@ class CarRacing1(gym.Env, EzPickle):
         x=(x*ZOOM+WINDOW_W/2)
         y=(y*ZOOM+WINDOW_H/2)
 
-        carinfo = [px,py,pangle]
+        carinfo = [px*255,py*255,pangle*255]
         x = min(int(x),598)
         x = max(int(x),1)
         y = min(int(y),598)
@@ -278,8 +281,8 @@ class CarRacing1(gym.Env, EzPickle):
 
         state = state[:,:,::-1]
         self.state = state[:,:,0:3]
-        # self.state = self.state.reshape(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2),3)
-        # self.state = np.vstack([carinfo,self.state])
+        self.state = self.state.reshape(int(96*96),3)
+        self.state = np.vstack([carinfo,self.state])
 
         #self.state = self.render("state_pixels")
 
@@ -375,7 +378,8 @@ class CarRacing1(gym.Env, EzPickle):
         t.enable()
 
         self.render_background(VP_W, VP_H)
-        self.render_pixcel_map(VP_W, VP_H)
+        #self.render_pixcel_map(VP_W, VP_H)
+        gl.glDrawPixels(VP_W, VP_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
         self.render_road(VP_W, VP_H)
 
         for geom in self.viewer.onetime_geoms:
@@ -411,7 +415,7 @@ class CarRacing1(gym.Env, EzPickle):
         gl.glVertex3f(-PLAYFIELD, -PLAYFIELD, 0)
         gl.glEnd()
 
-    def render_pixcel_map(self, VP_W, VP_H):
+    def render_pixcel_map(self):
         #from gym.envs.classic_control import rendering
 
         # this will get the color buffer from opengl rendering process
@@ -463,11 +467,11 @@ class CarRacing1(gym.Env, EzPickle):
             
 
         x_max, y_max = np.max(v, axis=0)
-        x_max = int(min(x_max, VP_W/2+PLAYFIELD*ZOOM))
-        y_max = int(min(y_max, VP_H/2+PLAYFIELD*ZOOM))
+        x_max = int(min(x_max, WINDOW_W/2+PLAYFIELD*ZOOM))
+        y_max = int(min(y_max, WINDOW_H/2+PLAYFIELD*ZOOM))
         x_min, y_min = np.min(v, axis=0)
-        x_min = int(max(x_min, VP_W/2-PLAYFIELD*ZOOM))
-        y_min = int(max(y_min, VP_H/2-PLAYFIELD*ZOOM))
+        x_min = int(max(x_min, WINDOW_W/2-PLAYFIELD*ZOOM))
+        y_min = int(max(y_min, WINDOW_H/2-PLAYFIELD*ZOOM))
 
         for x in range(x_min, x_max):
             for y in range(y_min, y_max):
@@ -476,10 +480,9 @@ class CarRacing1(gym.Env, EzPickle):
                 elif self.pixcel_map[y][x][1] == 255:
                     continue
                 elif isInside(v[0][0],v[0][1],v[1][0],v[1][1],v[2][0],v[2][1],x,y):
-                    
                     self.pixcel_map[y][x] = [255,0,0,255]
         #self.pixcel_map[v[0][1]][v[0][0]] = [0,255,0,255]
-        gl.glDrawPixels(VP_W, VP_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
+        
 
     def render_road(self, VP_W, VP_H):
 
