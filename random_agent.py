@@ -45,7 +45,9 @@ while len(ep_length_record) < 50:
 		# plt.imshow(obs[0]*255)
 		# plt.savefig("test.jpeg")
 		
-		writer.writerow([len(ep_length_record), reward_sum, ep_length, action_history/ep_length])
+		writer.writerow([len(ep_length_record), reward_sum[0], ep_length, action_history/ep_length])
+
+		print("Ep No.: ", len(ep_length_record))
 
 		print("reward: ", reward_sum)
 		reward_sum = 0

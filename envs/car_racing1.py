@@ -251,6 +251,8 @@ class CarRacing1(gym.Env, EzPickle):
         py = (y+PLAYFIELD)/(2*PLAYFIELD)
         pangle = (self.car.hull.angle%(2*math.pi))/(2*math.pi)
 
+
+
         # if abs(x) >= PLAYFIELD*0.8 and abs(y) >= PLAYFIELD*0.8:
         #     self.reward -= 1
         # else:
@@ -265,6 +267,7 @@ class CarRacing1(gym.Env, EzPickle):
         x = max(int(x),1)
         y = min(int(y),598)
         y = max(int(y),1)
+
         if self.pixcel_map[y][x][1] != 99:
             self.pixcel_map[y][x] = [255,255,0,0]
             self.pixcel_map[y][x+1] = [255,255,0,0]
@@ -305,14 +308,14 @@ class CarRacing1(gym.Env, EzPickle):
         #     done = True
 
         if action is not None: # First step without action, called from reset()
-            #self.reward += 0.1 #0.1
+            #self.reward -= 0.1 #0.1
             step_reward = self.reward - self.prev_reward
             # if step_reward < 1:
             #     step_reward -= 0.5
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            if count>=(40000-NUM_OBJ*20*20)*0.15:
+            if count>=(40000-NUM_OBJ*20*20)*0.3:
                 step_reward += 1000
                 #print("WTF! I fucking Won??!!")
                 done = True
@@ -393,10 +396,17 @@ class CarRacing1(gym.Env, EzPickle):
             win.flip()
             return self.viewer.isopen
 
-        image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-        arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-        arr = arr.reshape(VP_H, VP_W, 4)
-        arr = arr[::-1, :, 0:3]
+            # image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+            # arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+            # arr = arr.reshape(VP_H, VP_W, 4)
+            # arr = arr[::-1, :, 0:3]
+            # arr = arr[200:400, 300:500, :]
+            # import matplotlib.pyplot as plt
+            # plt.imshow(arr)
+            # plt.savefig("test.jpeg")
+            
+            
+        
         #arr = arr[int(VP_H/2-PLAYFIELD*ZOOM):int(VP_H/2+PLAYFIELD*ZOOM),int(VP_W/2-PLAYFIELD*ZOOM):int(VP_W/2+PLAYFIELD*ZOOM),:]
         return arr
 
