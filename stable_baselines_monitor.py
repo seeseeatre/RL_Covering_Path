@@ -98,11 +98,11 @@ env = DummyVecEnv([lambda: env])
 
 # model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
 # n_steps=10, gamma=0.75, 
-model = PPO2(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-#model._load_from_file('D://Users//Han//Workspace//gym_learn//model//TRPO_MlpPolicy_PIX_SMALL_EMPTY_stack.pkl')
-model.learn(total_timesteps=int(5e5), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpPolicy_PIX_SMALL_30P_EMPTY_stack.pkl')
-plot_results(log_dir)
+model = TRPO(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
+#model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpPolicy_PIX_30P_EMPTY_image.pkl')
+model.learn(total_timesteps=int(1e4), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//model//TRPO_MlpPolicy_PIX_30P_EMPTY_image.pkl')
+#plot_results(log_dir)
 
 obs = env.reset()
 reward_sum = 0.0

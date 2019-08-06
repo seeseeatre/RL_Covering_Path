@@ -25,7 +25,7 @@ SCALE       = 5.0        # Track scale
 TRACK_RAD   = 200/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 500/SCALE # Game over boundary
 FPS         = 30         # Frames per second
-ZOOM        = 1        # Camera zoom
+ZOOM        = 2        # Camera zoom
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
 X_MAX = int(WINDOW_W/2+PLAYFIELD*ZOOM)
 X_MIN = int(WINDOW_W/2-PLAYFIELD*ZOOM)
@@ -107,7 +107,8 @@ class CarRacing1(gym.Env, EzPickle):
         self.action_space = spaces.Discrete(6)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
         #self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(int(96*96)+1,3), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=255, shape=(int(96*96)+1,3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.uint8)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
@@ -115,7 +116,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.block = []
         self.block_poly=[]
         self.time_to_die = 0
-        #self.testblock = Block(self.world, 0 , 0,0)
+        self.testblock = Block(self.world, 0 , 0,0)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -133,7 +134,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.pixcel_map = []
         if self.car:
             self.car.destroy()
-        #self.testblock.destroy()
+        self.testblock.destroy()
 
     def _create_pixcel_block(self):
 
@@ -194,7 +195,7 @@ class CarRacing1(gym.Env, EzPickle):
             if self.verbose == 1:
                 print("retry to generate track (normal if there are not many of this messages)")
         self.car = Car(self.world, 0 , 0,0)
-        #self.testblock = Block(self.world, 0 , self.start_grid[0]+50,self.start_grid[1]+50)
+        self.testblock = Block(self.world, 0 , self.start_grid[0]+50,self.start_grid[1]+50)
         self.time_to_die = 0
         return self.step(None)[0]
 
@@ -242,8 +243,10 @@ class CarRacing1(gym.Env, EzPickle):
         self.world.Step(1.0/FPS, 6*30, 2*30)
         self.t += 1.0/FPS
 
-        self.render_pixcel_map()
+        # self.render_pixcel_map()
 
+
+        
         x, y = self.car.hull.position
         # i, j = self.car.detect.position
 
@@ -263,10 +266,10 @@ class CarRacing1(gym.Env, EzPickle):
         y=(y*ZOOM+WINDOW_H/2)
 
         carinfo = [px*255,py*255,pangle*255]
-        x = min(int(x),598)
-        x = max(int(x),1)
-        y = min(int(y),598)
-        y = max(int(y),1)
+        x = min(int(x),750)
+        x = max(int(x),50)
+        y = min(int(y),550)
+        y = max(int(y),50)
 
         if self.pixcel_map[y][x][1] != 99:
             self.pixcel_map[y][x] = [255,255,0,0]
@@ -275,19 +278,35 @@ class CarRacing1(gym.Env, EzPickle):
             self.pixcel_map[y+1][x] = [255,255,0,0]
             self.pixcel_map[y-1][x] = [255,255,0,0]
         
-        temp_map = self.pixcel_map
-        temp_map[Y_MIN-50:Y_MAX+50,X_MIN-50:X_MIN,:] = [255,99,99,99]
-        temp_map[Y_MIN-50:Y_MAX+50,X_MAX:X_MAX+50,:] = [255,99,99,99]
-        temp_map[Y_MIN-50:Y_MIN,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
-        temp_map[Y_MAX:Y_MAX+50,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
-        state = temp_map[y-48:y+48,x-48:x+48,0:4]
+        # temp_map = self.pixcel_map
+        # temp_map[Y_MIN-50:Y_MAX+50,X_MIN-50:X_MIN,:] = [255,99,99,99]
+        # temp_map[Y_MIN-50:Y_MAX+50,X_MAX:X_MAX+50,:] = [255,99,99,99]
+        # temp_map[Y_MIN-50:Y_MIN,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
+        # temp_map[Y_MAX:Y_MAX+50,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
+        # state = temp_map[y-48:y+48,x-48:x+48,0:4]
 
-        state = state[:,:,::-1]
-        self.state = state[:,:,0:3]
-        self.state = self.state.reshape(int(96*96),3)
-        self.state = np.vstack([carinfo,self.state])
+        # state = state[:,:,::-1]
+        # self.state = state[:,:,0:3]
+        # self.state = self.state.reshape(int(96*96),3)
+        # self.state = np.vstack([carinfo,self.state])
 
         #self.state = self.render("state_pixels")
+        arr = self.render("rgb_array")
+        
+        # yn = y-48
+        # yx = y+48
+        # xn = x-48
+        # xx = x+48
+        #x, y = self.car.hull.position
+        #x=int((x-WINDOW_W/2)*ZOOM+WINDOW_W/2)
+        #y=int((y-WINDOW_H/2)*ZOOM+WINDOW_H/2)
+        #arr[y][x]=[255,5,250]
+        #self.state = arr[y-48:y+48,x-48:x+48,:]
+        self.state = arr[Y_MIN:Y_MAX,X_MIN:X_MAX,:]
+
+        # import matplotlib.pyplot as plt
+        # plt.imshow(self.state)
+        # plt.savefig("test.jpeg")
 
         step_reward = 0
         done = False
@@ -298,7 +317,7 @@ class CarRacing1(gym.Env, EzPickle):
         #print(count/360000*100,"%")
         # if (count - self.last_count) <= 10:
         #     self.reward -= 0.1
-        self.reward += np.abs(count - self.last_count)/10
+        self.reward += np.abs(count - self.last_count)/100
         self.last_count = count
 
         # if self.time_to_die > 10000:
@@ -315,7 +334,7 @@ class CarRacing1(gym.Env, EzPickle):
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            if count>=(40000-NUM_OBJ*20*20)*0.3:
+            if count>=(160000-NUM_OBJ*20*20)*0.3:
                 step_reward += 1000
                 #print("WTF! I fucking Won??!!")
                 done = True
@@ -341,11 +360,19 @@ class CarRacing1(gym.Env, EzPickle):
             self.transform = rendering.Transform()
 
         if "t" not in self.__dict__: return  # reset() not called yet
-
+        zoom = ZOOM#*SCALE
         scroll_x = self.car.hull.position[0]
         scroll_y = self.car.hull.position[1]
         angle = -self.car.hull.angle
         vel = self.car.hull.linearVelocity
+        # if np.linalg.norm(vel) > 0.5:
+        #     angle = math.atan2(vel[0], vel[1])
+        # self.transform.set_scale(zoom, zoom)
+        # self.transform.set_translation(
+        #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
+        #     WINDOW_H/2 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
+        # self.transform.set_rotation(0)
+
         if np.linalg.norm(vel) > 0.5:
             angle = math.atan2(vel[0], vel[1])
         self.transform.set_scale(ZOOM, ZOOM)
@@ -354,7 +381,7 @@ class CarRacing1(gym.Env, EzPickle):
 
         self.transform.set_rotation(0)
         self.car.draw(self.viewer, mode!="state_pixels")
-        #self.testblock.draw(self.viewer)
+        self.testblock.draw(self.viewer)
 
         arr = None
         win = self.viewer.window
@@ -365,8 +392,8 @@ class CarRacing1(gym.Env, EzPickle):
         t = self.transform
 
         if mode=='rgb_array':
-            VP_W = VIDEO_W
-            VP_H = VIDEO_H
+            VP_W = WINDOW_W #VIDEO_W
+            VP_H = WINDOW_H #VIDEO_H
         elif mode == 'state_pixels':
             VP_W = STATE_W
             VP_H = STATE_H
@@ -381,7 +408,7 @@ class CarRacing1(gym.Env, EzPickle):
         t.enable()
 
         self.render_background(VP_W, VP_H)
-        #self.render_pixcel_map(VP_W, VP_H)
+        self.render_pixcel_map(VP_W, VP_H)
         gl.glDrawPixels(VP_W, VP_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
         self.render_road(VP_W, VP_H)
 
@@ -390,16 +417,16 @@ class CarRacing1(gym.Env, EzPickle):
         self.viewer.onetime_geoms = []
     
         t.disable()
-        self.render_indicators(WINDOW_W, WINDOW_H)
 
         if mode == 'human':
+            self.render_indicators(WINDOW_W, WINDOW_H)
             win.flip()
             return self.viewer.isopen
 
-            # image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-            # arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-            # arr = arr.reshape(VP_H, VP_W, 4)
-            # arr = arr[::-1, :, 0:3]
+        image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        arr = arr.reshape(VP_H, VP_W, 4)
+        arr = arr[::-1, :, 0:3]
             # arr = arr[200:400, 300:500, :]
             # import matplotlib.pyplot as plt
             # plt.imshow(arr)
@@ -425,7 +452,7 @@ class CarRacing1(gym.Env, EzPickle):
         gl.glVertex3f(-PLAYFIELD, -PLAYFIELD, 0)
         gl.glEnd()
 
-    def render_pixcel_map(self):
+    def render_pixcel_map(self, VP_W, VP_H):
         #from gym.envs.classic_control import rendering
 
         # this will get the color buffer from opengl rendering process
@@ -444,7 +471,7 @@ class CarRacing1(gym.Env, EzPickle):
         y3=self.exp_area[i][1]+16 * math.cos(self.exp_area[i][2])-8 * math.sin(self.exp_area[i][2])
         v=np.array([[x1,y1],[x2,y2],[x3,y3]])
         v=v*ZOOM
-        a=np.array([WINDOW_W/2, WINDOW_H/2]*3).reshape((3,2)).astype(dtype=np.uint32)
+        a=np.array([VP_W/2, VP_H/2]*3).reshape((3,2)).astype(dtype=np.uint32)
         v=np.add(v,a).astype(dtype=np.uint32)
 
         def area(x1, y1, x2, y2, x3, y3): 
@@ -477,11 +504,11 @@ class CarRacing1(gym.Env, EzPickle):
             
 
         x_max, y_max = np.max(v, axis=0)
-        x_max = int(min(x_max, WINDOW_W/2+PLAYFIELD*ZOOM))
-        y_max = int(min(y_max, WINDOW_H/2+PLAYFIELD*ZOOM))
+        x_max = int(min(x_max, VP_W/2+PLAYFIELD*ZOOM))
+        y_max = int(min(y_max, VP_H/2+PLAYFIELD*ZOOM))
         x_min, y_min = np.min(v, axis=0)
-        x_min = int(max(x_min, WINDOW_W/2-PLAYFIELD*ZOOM))
-        y_min = int(max(y_min, WINDOW_H/2-PLAYFIELD*ZOOM))
+        x_min = int(max(x_min, VP_W/2-PLAYFIELD*ZOOM))
+        y_min = int(max(y_min, VP_H/2-PLAYFIELD*ZOOM))
 
         for x in range(x_min, x_max):
             for y in range(y_min, y_max):
