@@ -8,7 +8,7 @@ import random
 
 
 #from stable_baselines.ddpg.policies import LnMlpPolicy
-from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
+#from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.bench import Monitor
@@ -17,6 +17,8 @@ from stable_baselines.results_plotter import load_results, ts2xy
 #from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines import PPO2, A2C
 from stable_baselines import TRPO
+from stable_baselines import DQN
+from stable_baselines.deepq.policies import MlpPolicy, LnMlpPolicy, CnnPolicy
 
 
 best_mean_reward, n_steps = -np.inf, 0
@@ -98,10 +100,10 @@ env = DummyVecEnv([lambda: env])
 
 # model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
 # n_steps=10, gamma=0.75, 
-model = TRPO(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-#model._load_from_file('D://Users//Han//Workspace//gym_learn//model//PPO2_MlpPolicy_PIX_30P_EMPTY_image.pkl')
-model.learn(total_timesteps=int(1e4), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//model//TRPO_MlpPolicy_PIX_30P_EMPTY_image.pkl')
+model = DQN(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
+#model._load_from_file('D://Users//Han//Workspace//gym_learn//model//DQN_CnnPolicy_PIX_30P_W_EMPTY_stack_NT.pkl')
+model.learn(total_timesteps=int(1e5), callback=callback)
+model._save_to_file('D://Users//Han//Workspace//gym_learn//model//DQN_MlpPolicy_PIX_25P_W_15B_stack_T.pkl')
 #plot_results(log_dir)
 
 obs = env.reset()
@@ -111,38 +113,37 @@ action_sum = np.zeros(6)
 ep_length = 0
 ep_length_record = []
 for i in range(10000):
-	action = [random.randint(0,5)]
-	action_history[action]+=1
-	action_sum[action]+=1
-	obs, rewards, dones, info = env.step(action)
-	reward_sum += rewards
+    action = [random.randint(0,5)]
+    action_history[action]+=1
+    action_sum[action]+=1
+    obs, rewards, dones, info = env.step(action)
+    reward_sum += rewards
+    ep_length += 1
 
-	ep_length += 1
+    env.render()
+    
+    if i % 100 == 0:
+        import matplotlib.pyplot as plt
+        plt.imshow(obs[0])
+        plt.savefig("test.jpeg")
+    if dones:
+        # import matplotlib.pyplot as plt
+        # plt.imshow(obs[0]*255)
+        # plt.savefig("test.jpeg")
+        
+        print("reward: ", reward_sum)
+        reward_sum = 0.0
 
-	# if i % 100 == 0:
-	# 	import matplotlib.pyplot as plt
-	# 	plt.imshow(obs[0]*255)
-	# 	plt.savefig("test.jpeg")
+        print("actions: ", action_history/ep_length)
+        action_history = np.zeros(6)
 
-	env.render()
-	if dones:
-		# import matplotlib.pyplot as plt
-		# plt.imshow(obs[0]*255)
-		# plt.savefig("test.jpeg")
-		
-		print("reward: ", reward_sum)
-		reward_sum = 0.0
+        print("Episode length: ", ep_length)
+        ep_length_record.append(ep_length)
+        ep_length = 0
 
-		print("actions: ", action_history/ep_length)
-		action_history = np.zeros(6)
-
-		print("Episode length: ", ep_length)
-		ep_length_record.append(ep_length)
-		ep_length = 0
-
-		obs = env.reset()
+        obs = env.reset()
 if ep_length >0:
-  ep_length_record.append(ep_length)
+    ep_length_record.append(ep_length)
 
 print("all actions: ", action_sum/len(ep_length_record))
 ep_length_avg = sum(ep_length_record) / len(ep_length_record)

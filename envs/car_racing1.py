@@ -7,7 +7,7 @@ import gym
 from gym import spaces
 
 from envs.car_dynamics1 import Car, Block
-
+import copy
 
 from gym.utils import colorize, seeding, EzPickle
 
@@ -24,7 +24,7 @@ WINDOW_H = 600
 SCALE       = 5.0        # Track scale
 TRACK_RAD   = 200/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 500/SCALE # Game over boundary
-FPS         = 30         # Frames per second
+FPS         = 50         # Frames per second
 ZOOM        = 2        # Camera zoom
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
 X_MAX = int(WINDOW_W/2+PLAYFIELD*ZOOM)
@@ -43,7 +43,7 @@ ROAD_COLOR = [0.4, 0.4, 0.4]
 GRID_COLOR = [0.2, 0.9, 0.2]
 BLOCK_COLOR = [0.1, 0.1, 0.1]
 
-NUM_OBJ=0 #15
+NUM_OBJ=15 #15
 
 class FrictionDetector(contactListener):
     def __init__(self, env):
@@ -65,14 +65,14 @@ class FrictionDetector(contactListener):
         if u2 and "block" in u2.__dict__:
             tile = u2
             obj  = u1
-        if not tile:
-            return
+        # if not tile:
+        #     return
 
-        if not obj or "tiles" not in obj.__dict__:
-            return
+        # if not obj or "tiles" not in obj.__dict__:
+        #     return
         if begin:
-            if tile.block==True and not obj.no_touch:
-                self.env.reward -= 200
+            # if tile.block==True and not obj.no_touch:
+            self.env.reward -= 20
 
 class CarRacing1(gym.Env, EzPickle):
     metadata = {
@@ -106,9 +106,9 @@ class CarRacing1(gym.Env, EzPickle):
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
-        #self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.float32)
-        #self.observation_space = spaces.Box(low=0, high=255, shape=(int(96*96)+1,3), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.uint8)
+        #self.observation_space = spaces.Box(low=0, high=1, shape=(int(96*96)+1,3), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=255, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.uint8)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.exp_area = []
@@ -116,7 +116,7 @@ class CarRacing1(gym.Env, EzPickle):
         self.block = []
         self.block_poly=[]
         self.time_to_die = 0
-        self.testblock = Block(self.world, 0 , 0,0)
+        self.testblock = Block(self.world, NUM_OBJ)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -187,16 +187,21 @@ class CarRacing1(gym.Env, EzPickle):
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
         self.time_to_die =0
         self.last_count = 0
-        while True:
-            test = self._create_pixcel_block()
-            if test:
+        # while True:
+        #     test = self._create_pixcel_block()
+        #     if test:
 
-                break
-            if self.verbose == 1:
-                print("retry to generate track (normal if there are not many of this messages)")
+        #         break
+        #     if self.verbose == 1:
+        #         print("retry to generate track (normal if there are not many of this messages)")
         self.car = Car(self.world, 0 , 0,0)
-        self.testblock = Block(self.world, 0 , self.start_grid[0]+50,self.start_grid[1]+50)
-        self.time_to_die = 0
+        self.testblock = Block(self.world, NUM_OBJ)
+        for i in range(4, 4+NUM_OBJ):
+            x,y = self.testblock.drawlist[i].position
+            x=int(x*ZOOM+WINDOW_W/2)
+            y=int(y*ZOOM+WINDOW_H/2)
+            self.pixcel_map[y-5:y+5, x-5:x+5] = [255,99,99,99] 
+
         return self.step(None)[0]
 
     def step(self, action):
@@ -243,11 +248,13 @@ class CarRacing1(gym.Env, EzPickle):
         self.world.Step(1.0/FPS, 6*30, 2*30)
         self.t += 1.0/FPS
 
-        # self.render_pixcel_map()
+        self.render_pixcel_map(WINDOW_W, WINDOW_H)
 
 
         
         x, y = self.car.hull.position
+        w0x, w0y = self.car.wheels[0].position
+        w1x, w1y = self.car.wheels[1].position
         # i, j = self.car.detect.position
 
         px = (x+PLAYFIELD)/(2*PLAYFIELD)
@@ -265,33 +272,46 @@ class CarRacing1(gym.Env, EzPickle):
         x=(x*ZOOM+WINDOW_W/2)
         y=(y*ZOOM+WINDOW_H/2)
 
+        w0x=int(w0x*ZOOM+WINDOW_W/2)
+        w0y=int(w0y*ZOOM+WINDOW_H/2)
+
+        w1x=int(w1x*ZOOM+WINDOW_W/2)
+        w1y=int(w1y*ZOOM+WINDOW_H/2)
+
         carinfo = [px*255,py*255,pangle*255]
         x = min(int(x),750)
         x = max(int(x),50)
         y = min(int(y),550)
         y = max(int(y),50)
 
-        if self.pixcel_map[y][x][1] != 99:
-            self.pixcel_map[y][x] = [255,255,0,0]
-            self.pixcel_map[y][x+1] = [255,255,0,0]
-            self.pixcel_map[y][x-1] = [255,255,0,0]
-            self.pixcel_map[y+1][x] = [255,255,0,0]
-            self.pixcel_map[y-1][x] = [255,255,0,0]
-        
-        # temp_map = self.pixcel_map
-        # temp_map[Y_MIN-50:Y_MAX+50,X_MIN-50:X_MIN,:] = [255,99,99,99]
-        # temp_map[Y_MIN-50:Y_MAX+50,X_MAX:X_MAX+50,:] = [255,99,99,99]
-        # temp_map[Y_MIN-50:Y_MIN,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
-        # temp_map[Y_MAX:Y_MAX+50,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
-        # state = temp_map[y-48:y+48,x-48:x+48,0:4]
+        # self.pixcel_map[w0y][w0x] = [255,255,255,0]
+        # self.pixcel_map[w1y][w1x] = [255,255,255,0]
 
-        # state = state[:,:,::-1]
-        # self.state = state[:,:,0:3]
+        temp_map = copy.deepcopy(self.pixcel_map)
+
+        if temp_map[y][x][1] != 99:
+            self.pixcel_map[y-1:y+1,x-1:x+1] = [255,255,0,0]
+            temp_map[y-11:y+11,x-11:x+11] = [255,255,0,0]
+            # temp_map[y][x-1] = [255,255,0,0]
+            # temp_map[y+1][x] = [255,255,0,0]
+            # temp_map[y-1][x] = [255,255,0,0]
+            temp_map[w0y-2:w0y+2,w0x-2:w0x+2] = [255,255,255,0]
+            temp_map[w1y-2:w1y+2,w1x-2:w1x+2] = [255,255,255,0]
+        
+        
+        temp_map[Y_MIN-50:Y_MAX+50,X_MIN-50:X_MIN,:] = [255,99,99,99]
+        temp_map[Y_MIN-50:Y_MAX+50,X_MAX:X_MAX+50,:] = [255,99,99,99]
+        temp_map[Y_MIN-50:Y_MIN,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
+        temp_map[Y_MAX:Y_MAX+50,X_MIN-50:X_MAX+50,:] = [255,99,99,99]
+        state = temp_map[y-48:y+48,x-48:x+48,0:4]
+
+        state = state[:,:,::-1]
+        self.state = state[:,:,0:3]
         # self.state = self.state.reshape(int(96*96),3)
         # self.state = np.vstack([carinfo,self.state])
 
         #self.state = self.render("state_pixels")
-        arr = self.render("rgb_array")
+        #arr = self.render("rgb_array")
         
         # yn = y-48
         # yx = y+48
@@ -302,7 +322,7 @@ class CarRacing1(gym.Env, EzPickle):
         #y=int((y-WINDOW_H/2)*ZOOM+WINDOW_H/2)
         #arr[y][x]=[255,5,250]
         #self.state = arr[y-48:y+48,x-48:x+48,:]
-        self.state = arr[Y_MIN:Y_MAX,X_MIN:X_MAX,:]
+        #self.state = arr[Y_MIN:Y_MAX,X_MIN:X_MAX,:]
 
         # import matplotlib.pyplot as plt
         # plt.imshow(self.state)
@@ -318,13 +338,15 @@ class CarRacing1(gym.Env, EzPickle):
         # if (count - self.last_count) <= 10:
         #     self.reward -= 0.1
         self.reward += np.abs(count - self.last_count)/100
+        # if np.abs(count - self.last_count)/100 <= 0.5:
+        #     self.reward -= 0.5
         self.last_count = count
 
-        # if self.time_to_die > 10000:
-        #     #print("time to die!")
-        #     #self.reward -= 1000
-        #     self.time_to_die = 0
-        #     done = True
+        if self.time_to_die > 5000:
+            #print("time to die!")
+            #self.reward -= 1000
+            self.time_to_die = 0
+            done = True
 
         if action is not None: # First step without action, called from reset()
             #self.reward -= 0.1 #0.1
@@ -334,7 +356,7 @@ class CarRacing1(gym.Env, EzPickle):
             # if step_reward > 1:
             #     step_reward = step_reward * step_reward
             self.prev_reward = self.reward
-            if count>=(160000-NUM_OBJ*20*20)*0.3:
+            if count>=(160000-NUM_OBJ*20*20)*0.25:
                 step_reward += 1000
                 #print("WTF! I fucking Won??!!")
                 done = True
@@ -408,7 +430,7 @@ class CarRacing1(gym.Env, EzPickle):
         t.enable()
 
         self.render_background(VP_W, VP_H)
-        self.render_pixcel_map(VP_W, VP_H)
+        #self.render_pixcel_map(VP_W, VP_H)
         gl.glDrawPixels(VP_W, VP_H, gl.GL_RGBA, gl.GL_UNSIGNED_INT_8_8_8_8 , np.ascontiguousarray(self.pixcel_map).ctypes)
         self.render_road(VP_W, VP_H)
 
@@ -461,7 +483,7 @@ class CarRacing1(gym.Env, EzPickle):
         # this record the position and angle of the middle vertex of the triangle
         # self.exp_area.append((self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle))
         # i=-1
-        self.exp_area=[(self.car.detect.transform.position.x, self.car.detect.transform.position.y, self.car.detect.transform.angle)]
+        self.exp_area=[(self.car.hull.transform.position.x, self.car.hull.transform.position.y, self.car.hull.transform.angle)]
         i=0
         x1=self.exp_area[i][0]
         y1=self.exp_area[i][1]

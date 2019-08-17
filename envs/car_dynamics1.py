@@ -29,13 +29,23 @@ HULL_POLY =[
 
 VIDUAL_DETECT = [
     (0,0),
-    (-200,400),
-    (200,400)
+    (-2,4),
+    (2,4)
     ]
+
+SQUARE_BLOCK = [
+    (-5,-5),
+    (-5,5),
+    (5,5),
+    (5,-5)
+]
+
+WALL_POSE = [(0,-105),(-105,0),(0,105),(105,0)]
 
 WHEEL_COLOR = (0.2,0.0,0.3)
 WHEEL_WHITE = (0.3,0.3,0.3)
 MUD_COLOR   = (0.4,0.4,0.0)
+BLOCK_COLOR = (0.2,0.2,0.2)
 
 class Car:
     def __init__(self, world, init_angle, init_x, init_y):
@@ -51,30 +61,31 @@ class Car:
             )
         self.hull.color = (0.0,0.0,1.0)
         self.hull.no_touch = False
+        self.hull.userData = self.hull
         #======================================================
         #======================================================
-        self.detect = self.world.CreateDynamicBody(
-            position = (init_x, init_y),
-            angle = self.hull.angle,
-            fixtures = [ 
-                 fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in VIDUAL_DETECT ]), density=0.001)
-                ]
-            )
-        rjd = revoluteJointDef(
-                bodyA=self.detect,
-                bodyB=self.hull,
-                localAnchorA=(0,0),
-                localAnchorB=(0,0),
-                enableMotor=True,
-                enableLimit=True,
-                maxMotorTorque=0,
-                motorSpeed = 0,
-                lowerAngle = 0,
-                upperAngle = 0,
-                )
-        self.detect.joint = self.world.CreateJoint(rjd)
-        self.detect.no_touch = True
-        self.detect.color = (0.0,1.0,0.0)
+        # self.detect = self.world.CreateDynamicBody(
+        #     position = (init_x, init_y),
+        #     angle = self.hull.angle,
+        #     fixtures = [ 
+        #         fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in VIDUAL_DETECT ]), density=0.001)
+        #        ]
+        #     )
+        # rjd = revoluteJointDef(
+        #         bodyA=self.detect,
+        #         bodyB=self.hull,
+        #         localAnchorA=(0,-3),
+        #         localAnchorB=(0,0),
+        #         enableMotor=True,
+        #         enableLimit=True,
+        #         maxMotorTorque=0,
+        #         motorSpeed = 0,
+        #         lowerAngle = 0,
+        #         upperAngle = 0,
+        #         )
+        # self.detect.joint = self.world.CreateJoint(rjd)
+        # self.detect.no_touch = True
+        # self.detect.color = (0.0,1.0,0.0)
         #======================================================
         self.wheels = []
         self.fuel_spent = 0.0
@@ -121,7 +132,7 @@ class Car:
             w.userData = w
             self.wheels.append(w)
         #======================================================
-        self.drawlist =  self.wheels + [self.detect] + [self.hull] 
+        self.drawlist =  self.wheels + [self.hull] #+ [self.detect] 
         self.particles = []
 
     def gas(self, gas):
@@ -276,30 +287,55 @@ class Car:
     def destroy(self):
         self.world.DestroyBody(self.hull)
         self.hull = None
-        self.world.DestroyBody(self.detect)
-        self.detect = None
+        #self.world.DestroyBody(self.detect)
+        #self.detect = None
         for w in self.wheels:
             self.world.DestroyBody(w)
         self.wheels = []
 
 
 class Block:
-    def __init__(self, world, init_angle, position_x, position_y):
+    def __init__(self, world, NUM_OBJ):
         self.world = world
         self.drawlist = []
-        for b in range(10):
-        #===============define a object============
-            self.shapeBlock = self.world.CreateBody(
-                position = (int(np.random.random_integers(-80,80)), int(np.random.random_integers(-80,80))),
-                angle = init_angle,
-                fixtures = [ 
-                    fixtureDef(shape = circleShape(radius=int(np.random.random_integers(5,15))), density = 1.0)
-                    ]
-            )
-            self.shapeBlock.color1 = (0.2,0.2,0.2)
-            self.shapeBlock.color2 = (0.4,0.4,0.4)
+        for w in range (4):
+            if w%2 == 0:
+                self.wallBlock = self.world.CreateBody(
+                    position = WALL_POSE[w],
+                    angle = 0,
+                    fixtures = [ 
+                        fixtureDef(shape = polygonShape(vertices=[ (x*21,y) for x,y in SQUARE_BLOCK ]), density=1.0)
+                        ]
+                )
+            else:
+                self.wallBlock = self.world.CreateBody(
+                    position = WALL_POSE[w],
+                    angle = 0,
+                    fixtures = [ 
+                        fixtureDef(shape = polygonShape(vertices=[ (x,y*21) for x,y in SQUARE_BLOCK ]), density=1.0)
+                        ]
+                )
+            self.wallBlock.color = BLOCK_COLOR
+            self.wallBlock.userData = self.wallBlock
             #==========================================
             
+            self.drawlist.append(self.wallBlock)
+
+        x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
+        y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
+        for b in range(NUM_OBJ):
+        #===============define a object============
+            self.shapeBlock = self.world.CreateBody(
+                position = (x[b], y[b]), #(int(np.random.random_integers(-90,90)), int(np.random.random_integers(-90,90))),
+                angle = 0, #np.random.random()*6,
+                fixtures = [ 
+                    fixtureDef(shape = polygonShape(vertices=[ (x,y) for x,y in SQUARE_BLOCK ]), density=1.0)
+                    ]
+            )
+            self.shapeBlock.color = BLOCK_COLOR
+            #self.shapeBlock.color2 = (0.4,0.4,0.4)
+            #==========================================
+            self.shapeBlock.userData = self.shapeBlock
             self.drawlist.append(self.shapeBlock)
             
 
@@ -309,13 +345,16 @@ class Block:
         for obj in self.drawlist:
             for f in obj.fixtures:
                 trans = f.body.transform
-                t = rendering.Transform(translation=trans*f.shape.pos)
-                viewer.draw_circle(f.shape.radius, 30, color=obj.color1).add_attr(t)
-                viewer.draw_circle(f.shape.radius, 30, color=obj.color2, filled=False, linewidth=2).add_attr(t)
+                path = [trans*v for v in f.shape.vertices]
+                viewer.draw_polygon(path, color=obj.color)
+                # trans = f.body.transform
+                # t = rendering.Transform(translation=trans*f.shape.pos)
+                # viewer.draw_circle(f.shape.radius, 30, color=obj.color1).add_attr(t)
+                # viewer.draw_circle(f.shape.radius, 30, color=obj.color2, filled=False, linewidth=2).add_attr(t)
 
 
     def destroy(self):
-        for b in range(10):
+        for b in range(len(self.drawlist)):
             self.world.DestroyBody(self.drawlist[b])
         self.drawlist = []
         # self.world.DestroyBody(self.shapeBlock)
