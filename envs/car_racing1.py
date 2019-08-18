@@ -43,7 +43,7 @@ ROAD_COLOR = [0.4, 0.4, 0.4]
 GRID_COLOR = [0.2, 0.9, 0.2]
 BLOCK_COLOR = [0.1, 0.1, 0.1]
 
-NUM_OBJ=15 #15
+NUM_OBJ=0 #15
 
 class FrictionDetector(contactListener):
     def __init__(self, env):
@@ -71,8 +71,9 @@ class FrictionDetector(contactListener):
         # if not obj or "tiles" not in obj.__dict__:
         #     return
         if begin:
+            pass
             # if tile.block==True and not obj.no_touch:
-            self.env.reward -= 20
+            #self.env.reward -= 20
 
 class CarRacing1(gym.Env, EzPickle):
     metadata = {
@@ -106,8 +107,8 @@ class CarRacing1(gym.Env, EzPickle):
         #self.action_space = spaces.Box( np.array([-3,-3,0]), np.array([+3,+3,+1]), dtype=np.float32)  # steer, gas, brake
         self.action_space = spaces.Discrete(6)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2*PLAYFIELD*ZOOM*2)+1,3), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.uint8)
-        #self.observation_space = spaces.Box(low=0, high=1, shape=(int(96*96)+1,3), dtype=np.float32)
+        # self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(int(96*96)+1,3), dtype=np.float32)
         #self.observation_space = spaces.Box(low=0, high=255, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.uint8)
         #self.observation_space = spaces.Box(low=0, high=1, shape=(int(PLAYFIELD*ZOOM*2),int(PLAYFIELD*ZOOM*2),3), dtype=np.float32)
         self.pixcel_map = np.zeros((WINDOW_H, WINDOW_W, 4), dtype=np.uint8)
@@ -307,8 +308,8 @@ class CarRacing1(gym.Env, EzPickle):
 
         state = state[:,:,::-1]
         self.state = state[:,:,0:3]
-        # self.state = self.state.reshape(int(96*96),3)
-        # self.state = np.vstack([carinfo,self.state])
+        self.state = self.state.reshape(int(96*96),3)
+        self.state = np.vstack([carinfo,self.state])
 
         #self.state = self.render("state_pixels")
         #arr = self.render("rgb_array")

@@ -295,7 +295,7 @@ class Car:
 
 
 class Block:
-    def __init__(self, world, NUM_OBJ):
+    def __init__(self, world, NUM_OBJ, blockx=[], blocky=[]):
         self.world = world
         self.drawlist = []
         for w in range (4):
@@ -321,12 +321,14 @@ class Block:
             
             self.drawlist.append(self.wallBlock)
 
-        x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
-        y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
+        #x = [70, 25, -1, -42, -50, -66, -60, 76, 38, -59, 38, 50, 88, -88, 32, 0]
+        #y = [39, -60, 58, 20, -50, -66, -40, 38, -27, 38, 67, -22, -16, 19, 27, 0]
+        x=blockx
+        y=blocky
         for b in range(NUM_OBJ):
         #===============define a object============
             self.shapeBlock = self.world.CreateBody(
-                position = (x[b], y[b]), #(int(np.random.random_integers(-90,90)), int(np.random.random_integers(-90,90))),
+                position = (x[b], y[b]) if len(x)>0 else (int(np.random.random_integers(-90,90)), int(np.random.random_integers(-90,90))), #(int(np.random.random_integers(-90,90)), int(np.random.random_integers(-90,90))),  #
                 angle = 0, #np.random.random()*6,
                 fixtures = [ 
                     fixtureDef(shape = polygonShape(vertices=[ (x,y) for x,y in SQUARE_BLOCK ]), density=1.0)
