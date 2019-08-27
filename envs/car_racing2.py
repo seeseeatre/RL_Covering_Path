@@ -26,11 +26,11 @@ WINDOW_H = 600
 SCALE       = 5.0        # Track scale
 TRACK_RAD   = 200/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 500/SCALE # Game over boundary
-FPS         = 50         # Frames per second
+FPS         = 60         # Frames per second
 ZOOM        = 2        # Camera zoom
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
 
-NUM_OBJ = 15
+NUM_OBJ = 0
 
 TRACK_DETAIL_STEP = 21/SCALE
 TRACK_TURN_RATE = 0.31
@@ -54,38 +54,51 @@ class FrictionDetector(contactListener):
     def _contact(self, contact, begin):
         tile = None
         obj = None
+        block= None
+        robot = None
         u1 = contact.fixtureA.body.userData
         u2 = contact.fixtureB.body.userData
 
         #print("there's a friction detect called!!!\n")
-
+        if u1 and "isBlock" in u1.__dict__:
+            block = u1
+            robot  = u2
+        if u2 and "isBlock" in u2.__dict__:
+            block = u2
+            robot  = u1
         if u1 and "road_friction" in u1.__dict__:
             tile = u1
             obj  = u2
         if u2 and "road_friction" in u2.__dict__:
             tile = u2
             obj  = u1
-        if not tile:
+
+        if not (tile or block):
             return
 
-        if tile.block:
-            tile.color[0] = 0 # ROAD_COLOR[0]
-            tile.color[1] = 0 # ROAD_COLOR[1]
-            tile.color[2] = 0 # ROAD_COLOR[2]
-        else:
+        if tile and not block:
             tile.color[0] = 1 # ROAD_COLOR[0]
             tile.color[1] = 0 # ROAD_COLOR[1]
             tile.color[2] = 0 # ROAD_COLOR[2]
+        # else:
+        #     tile.color[0] = 1 # ROAD_COLOR[0]
+        #     tile.color[1] = 0 # ROAD_COLOR[1]
+        #     tile.color[2] = 0 # ROAD_COLOR[2]
 
-        if not obj or "tiles" not in obj.__dict__:
-            return
-        if begin:
+
             
-            obj.tiles.add(tile)
+        if begin:
+            if not obj or "tiles" not in obj.__dict__:
+                pass
+            else:
+                obj.tiles.add(tile)
             # print tile.road_friction, "ADD", len(obj.tiles)
             # if tile.road_visited:
             #     self.env.reward -= 1
-            if not tile.road_visited:
+            if block:
+                self.env.reward -= 2
+
+            elif not tile.road_visited:
                 tile.road_visited = True
                 #self.env.reward += 1000.0/len(self.env.track)
                 self.env.reward += 5
@@ -94,16 +107,18 @@ class FrictionDetector(contactListener):
                 j=tile.pos[1]
                 self.env.simple_grid[i][j]=1
 
-            if tile.block:
-                self.env.reward -= 20
+            
 
         else:
-            obj.tiles.remove(tile)
+            if not obj or "tiles" not in obj.__dict__:
+                pass
+            else:
+                obj.tiles.remove(tile)
             #if len(obj.tiles) ==0:
             #    self.env.reward -=10
             #print (tile.road_friction, "DEL", len(obj.tiles) )#-- should delete to zero when on grass (this works)
 
-class CarRacing1(gym.Env, EzPickle):
+class CarRacing2(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second' : FPS
@@ -131,10 +146,11 @@ class CarRacing1(gym.Env, EzPickle):
                 shape = polygonShape(vertices=
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
         #self.action_space = spaces.Box( np.array([-3,-3]), np.array([+3,+3]), dtype=np.float32)  # steer, gas, brake
-        self.action_space = spaces.Discrete(6)
+        self.action_space = spaces.Discrete(4)
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        # self.observation_space = spaces.Box(low=-100, high=100, shape=(1, 403), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=255, shape=(20,20), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=3, shape=(1, 403), dtype=np.float32)
+        #self.observation_space = spaces.Box(low=0, high=255, shape=(96,96,3), dtype=np.uint8)
         # self.observation_space = [ spaces.Box(low=0, high=2, shape=(20, 20), dtype=np.uint8),
         #                                         spaces.Box(np.array([-100,-100,-500]), np.array([100,100,500]), dtype=np.float32) ]
 
@@ -143,6 +159,8 @@ class CarRacing1(gym.Env, EzPickle):
         self.block_poly=[]
         self.time_to_die = 0
         #self.testblock = Block(self.world, 0)
+        self.stuck_time = 0
+        #self.state = np.zeros((20, 20), dtype=np.uint8)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -172,6 +190,7 @@ class CarRacing1(gym.Env, EzPickle):
         blocky=[]
         
         obj_id = random.sample(range(1, 399), NUM_OBJ+1)
+        #obj_id = [350, 99, 271, 225, 359, 181, 259, 103, 130, 127, 389,  29,   3, 124,  90, 242]
         # generate the grid map without any object on it
         for x in range(-30, 30, 3):
             for y in range(-30, 30, 3):
@@ -196,7 +215,7 @@ class CarRacing1(gym.Env, EzPickle):
                 t.color = [GRID_COLOR[0] + c, GRID_COLOR[1] + c, GRID_COLOR[2] + c]
                 t.road_visited = False
                 t.road_friction = 1.0
-                t.block = False
+                #t.isBlock = False
                 t.start_point = False
                 t.fixtures[0].sensor = True
                 t.pos = [19 - int(y/3+10), int(x/3+10)]
@@ -205,7 +224,7 @@ class CarRacing1(gym.Env, EzPickle):
                 # block color
                 if len(self.grid)in obj_id[0:-1]:
                     t.color = [1.0, 0.0, 0.0]
-                    t.block = True
+                    #t.isBlock = True
                     #i = int(x/3+10)
                     #j = 19 - int(y/3+10)
                     i=t.pos[0]
@@ -214,13 +233,13 @@ class CarRacing1(gym.Env, EzPickle):
                     blocky.append(k*y+3*k*0.5)
                     self.simple_grid[i][j]=2
 
-                if len(self.grid)==obj_id[-1]:
-                    t.color = [1.0, 0.6, 0.2]
-                    t.start_point = True
-                    self.start_grid = (k*x+3*k/2, k*y+3*k/2)
-                    i=t.pos[0]
-                    j=t.pos[1]
-                    self.simple_grid[i][j]=1
+                # if len(self.grid)==obj_id[-1]:
+                #     t.color = [1.0, 0.6, 0.2]
+                #     t.start_point = True
+                #     self.start_grid = (k*x+3*k/2, k*y+3*k/2)
+                #     i=t.pos[0]
+                #     j=t.pos[1]
+                #     self.simple_grid[i][j]=1
 
                 self.grid_poly.append(([
                     (k*x+3*k*0.01, k*y+3*k*0.01),
@@ -246,8 +265,8 @@ class CarRacing1(gym.Env, EzPickle):
         self.start_grid=[]
         self.simple_grid = np.zeros((20,20))
         self.total_timestep = 0
-
-
+        self.stuck_time = 0
+        #self.state = np.zeros((20, 20), dtype=np.uint8)
         while True:
             #success = self._create_track()
             test = self._create_gridmap()
@@ -257,7 +276,8 @@ class CarRacing1(gym.Env, EzPickle):
             if self.verbose == 1:
                 print("retry to generate track (normal if there are not many of this messages)")
         #self.car = Car(self.world, *self.track[0][1:4])
-        self.car = Car(self.world, 0 , self.start_grid[0],self.start_grid[1])
+        #self.car = Car(self.world, 0 , self.start_grid[0],self.start_grid[1])
+        self.car = Car(self.world, 0 , 0,0)
         #self.testblock = Block(self.world, NUM_OBJ)
 
 
@@ -270,7 +290,7 @@ class CarRacing1(gym.Env, EzPickle):
         #     return self.state, step_reward, done, {}
 
         self.total_timestep = self.total_timestep + 1
-
+        # self.reward -= 0.1
         # if self.total_timestep == 500:
         #     self.reward += 50
         # if self.total_timestep == 1000:
@@ -300,22 +320,22 @@ class CarRacing1(gym.Env, EzPickle):
                 #self.reward += 10
             # forward + left
             elif action == 2:
-                self.car.gas(0.3)
+                self.car.gas(0.5)
                 self.car.steer(1)
                 #self.reward -= 5
             # forward + right
             elif action == 3:
-                self.car.gas(0.3)
+                self.car.gas(0.5)
                 self.car.steer(-1)
                 #self.reward -= 5
             # backward + left
             elif action == 4:
-                self.car.gas(-0.3)
+                self.car.gas(-0.5)
                 self.car.steer(1)
                 #self.reward -= 5
             # backward + right
             elif action == 5:
-                self.car.gas(-0.3)
+                self.car.gas(-0.5)
                 self.car.steer(-1)
                 #self.reward -= 5
 
@@ -324,18 +344,37 @@ class CarRacing1(gym.Env, EzPickle):
         self.t += 1.0/FPS
         #print("simple grid:\n", self.simple_grid)
         #print('pos and angle:', self.car.hull.position, -self.car.hull.angle)
-        self.state = self.render("state_pixels")
-        import matplotlib.pyplot as plt
-        plt.imshow(self.state)
-        plt.savefig("test.jpeg")
+        #self.state = self.render("state_pixels")
+        # import matplotlib.pyplot as plt
+        # plt.imshow(self.state)
+        # plt.savefig("test.jpeg")
         # angle = (-self.car.hull.angle)%(2*np.pi)
         # carinfo = np.array([self.car.hull.position.x, self.car.hull.position.y, angle]).flatten()
-        # #print(carinfo)
-        # #print(self.simple_grid.size)
-        # #self.state = np.array(self.simple_grid, dtype = np.float32)        
-        # state = np.array(self.simple_grid, dtype = np.float32).flatten()
-        # #state = np.append(state,np.zeros((1,20))).reshape((21,20))
-        # state = np.append(state, carinfo)
+        
+        x, y = self.car.hull.position
+        px = (x+PLAYFIELD)/(2*PLAYFIELD)
+        py = (y+PLAYFIELD)/(2*PLAYFIELD)
+        pangle = (self.car.hull.angle%(2*math.pi))/(2*math.pi)
+        # #self.state = np.array(self.simple_grid, dtype = np.float32)   
+        carinfo = [px*2,py*2,pangle*2]
+
+        # if self.total_timestep % 100 ==0:
+        #     print(self.simple_grid)
+        # self.state = np.zeros((20,20), dtype=np.uint8)
+        # for i in range(0,20):
+        #     for j in range(0,20):
+        #         self.state[i][j] = [self.simple_grid[i][j]*125, self.simple_grid[i][j]*125, self.simple_grid[i][j]*125]
+        #self.state = [[i * 125,i * 125,i * 125] for i in self.simple_grid]
+        #self.state = self.simple_grid
+        # self.state = [self.state,self.state,self.state]
+
+        state = np.array(self.simple_grid, dtype = np.float32).flatten()
+        self.state = np.append(carinfo, state)
+        
+        # if self.total_timestep % 100==0:
+        #     import matplotlib.pyplot as plt
+        #     plt.imshow(self.state)
+        #     plt.savefig("test.jpeg")
 
         # state[20][0] = carinfo[0]
         # state[20][1] = carinfo[1]
@@ -344,18 +383,36 @@ class CarRacing1(gym.Env, EzPickle):
         # self.state = state
         #self.state = [self.simple_grid, self.car.hull.position, -self.car.hull.angle]
 
-
         step_reward = 0
         done = False
+
+        # if self.reward <= self.prev_reward:
+        #     #print("im stuck" , self.stuck_time)
+        #     self.stuck_time += 1
+        #     self.reward -= 0.01*self.stuck_time
+        # else:
+        #     self.stuck_time =0
+        # if self.stuck_time > 500:
+        #     self.reward -= 500
+        #     done = True
+
+        
         if action is not None: # First step without action, called from reset()
-            # self.reward -= 0.1 #0.1
+            #self.reward -= 0.5 #*self.total_timestep #0.1            
+            if self.total_timestep > 5000:
+                self.total_timestep = 0
+                self.reward -= 5000
+                done = True
             # We actually don't want to count fuel spent, we want car to be faster.
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             # self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
+
             self.prev_reward = self.reward
 
-            if self.tile_visited_count>=(20*20-NUM_OBJ)*0.25: #len(self.track):
+
+
+            if self.tile_visited_count>=(20*20-NUM_OBJ)*0.2: #len(self.track):
                 step_reward += 1000
                 done = True
             x, y = self.car.hull.position
@@ -512,6 +569,12 @@ class CarRacing1(gym.Env, EzPickle):
 
 if __name__=="__main__":
     from pyglet.window import key
+
+    import csv
+    csvFile = open("human_agent_grid.csv", "w")
+    writer = csv.writer(csvFile)
+    writer.writerow(["index","Reward","Episode Length"])
+
     a = np.array( [0.0, 0.0] )
     da = np.array([0])
     def key_press(k, mod):
@@ -530,7 +593,7 @@ if __name__=="__main__":
         if k==key.UP:    da[0]=0
         if k==key.DOWN:  da[0]=0
 
-    env = CarRacing1()
+    env = CarRacing2()
     env.render()
     env.viewer.window.on_key_press = key_press
     env.viewer.window.on_key_release = key_release
@@ -540,6 +603,8 @@ if __name__=="__main__":
         from gym.wrappers.monitor import Monitor
         env = Monitor(env, '/tmp/video-test', force=True)
     isopen = True
+    index = 0
+
     while isopen:
         env.reset()
         total_reward = 0.0
@@ -559,6 +624,11 @@ if __name__=="__main__":
                 # plt.savefig("test.jpeg")
             steps += 1
             isopen = env.render()
+            if done:
+                print("this is game: ",index)
+                writer.writerow([index, total_reward, steps])
+                index += 1
             if done or restart or isopen == False:
                 break
     env.close()
+    csvFile.close()

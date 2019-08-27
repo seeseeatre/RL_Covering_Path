@@ -6,20 +6,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 
-
-#from stable_baselines.ddpg.policies import LnMlpPolicy
-#from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.bench import Monitor
 from stable_baselines.results_plotter import load_results, ts2xy
-#from stable_baselines import DDPG
-#from stable_baselines.ddpg import AdaptiveParamNoiseSpec
-from stable_baselines import PPO2, A2C
-from stable_baselines import TRPO
+from stable_baselines import PPO2, A2C, TRPO
+from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
+
 from stable_baselines import DQN
 from stable_baselines.deepq.policies import MlpPolicy, LnMlpPolicy, CnnPolicy
-
 
 best_mean_reward, n_steps = -np.inf, 0
 
@@ -58,7 +53,6 @@ def moving_average(values, window):
     weights = np.repeat(1.0, window) / window
     return np.convolve(values, weights, 'valid')
 
-
 def plot_results(log_folder, title='Learning Curve'):
     """
     plot the results
@@ -83,10 +77,10 @@ log_dir = "D:/Users/Han/Workspace/gym_learn/tmp/gym/"
 os.makedirs(log_dir, exist_ok=True)
 
 # Create and wrap the environment
-env = gym.make('CarRacing-v1')
+env = gym.make('CarRacing-v2')
 
 
-env = Monitor(env, log_dir, allow_early_resets=True)
+#env = Monitor(env, log_dir, allow_early_resets=True)
 env = DummyVecEnv([lambda: env])
 
 # Add some param noise for exploration
@@ -100,10 +94,11 @@ env = DummyVecEnv([lambda: env])
 
 # model = PPO2(CnnLstmPolicy, env, verbose=1, nminibatches=1, tensorboard_log="./test_tensorboard/")
 # n_steps=10, gamma=0.75, 
-model = DQN(MlpPolicy, env, verbose=1, tensorboard_log="./test_tensorboard/")
-#model._load_from_file('D://Users//Han//Workspace//gym_learn//model//DQN_CnnPolicy_PIX_30P_W_EMPTY_stack_NT.pkl')
+model = DQN(MlpPolicy, env, verbose=1, gamma=0.75, exploration_fraction=0.3,  tensorboard_log="./test_tensorboard/grid/test/")
+model.load('D://Users//Han//Workspace//gym_learn//model//DQN_grid_stage1_l.pkl')
 model.learn(total_timesteps=int(1e5), callback=callback)
-model._save_to_file('D://Users//Han//Workspace//gym_learn//model//DQN_MlpPolicy_PIX_25P_W_15B_stack_T.pkl')
+model.save('D://Users//Han//Workspace//gym_learn//model//DQN_grid_stage1_l.pkl')
+
 #plot_results(log_dir)
 
 obs = env.reset()
@@ -113,7 +108,7 @@ action_sum = np.zeros(6)
 ep_length = 0
 ep_length_record = []
 for i in range(10000):
-    action = [random.randint(0,5)]
+    action = model.predict(obs)
     action_history[action]+=1
     action_sum[action]+=1
     obs, rewards, dones, info = env.step(action)
@@ -122,10 +117,11 @@ for i in range(10000):
 
     env.render()
     
-    if i % 100 == 0:
-        import matplotlib.pyplot as plt
-        plt.imshow(obs[0])
-        plt.savefig("test.jpeg")
+    # if i % 100 == 0:
+    #     import matplotlib.pyplot as plt
+    #     plt.imshow(obs[0])
+    #     print("take pic...")
+    #     plt.savefig("test.jpeg")
     if dones:
         # import matplotlib.pyplot as plt
         # plt.imshow(obs[0]*255)

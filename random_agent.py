@@ -6,16 +6,16 @@ import matplotlib.pyplot as plt
 import random
 import csv
 
-from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
+#from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, MlpLstmPolicy, CnnPolicy, CnnLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines import PPO2, A2C
+#from stable_baselines import PPO2, A2C
 
-csvFile = open("random_agent_log.csv", "w")
+csvFile = open("random_agent_grid.csv", "w")
 writer = csv.writer(csvFile)
 writer.writerow(["index","Reward","Episode Length","Action"])
 
 # Create and wrap the environment
-env = gym.make('CarRacing-v1')
+env = gym.make('CarRacing-v2')
 env = DummyVecEnv([lambda: env])
 
 obs = env.reset()

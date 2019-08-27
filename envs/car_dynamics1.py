@@ -50,6 +50,7 @@ BLOCK_COLOR = (0.2,0.2,0.2)
 class Car:
     def __init__(self, world, init_angle, init_x, init_y):
         self.world = world
+        self.isRobot = True
         #======================================================
         self.hull = self.world.CreateDynamicBody(
             position = (init_x, init_y),
@@ -297,6 +298,7 @@ class Car:
 class Block:
     def __init__(self, world, NUM_OBJ, blockx=[], blocky=[]):
         self.world = world
+        
         self.drawlist = []
         for w in range (4):
             if w%2 == 0:
@@ -316,6 +318,7 @@ class Block:
                         ]
                 )
             self.wallBlock.color = BLOCK_COLOR
+            self.wallBlock.isBlock = True
             self.wallBlock.userData = self.wallBlock
             #==========================================
             
@@ -338,6 +341,7 @@ class Block:
             #self.shapeBlock.color2 = (0.4,0.4,0.4)
             #==========================================
             self.shapeBlock.userData = self.shapeBlock
+            self.shapeBlock.isBlock = True
             self.drawlist.append(self.shapeBlock)
             
 
